@@ -74,6 +74,13 @@ td.reading { font-family: var(--mono); font-size: 12px; }
 .sensor-status.good { color: var(--green); background: #203630; }
 .sensor-status.alert { color: var(--yellow); background: #433627; }
 .empty { color: var(--muted); padding-block: 18px; }
+#sensors-empty { padding-inline: 19px; }
+.sensor-section { border-top: 1px solid var(--border); }
+.sensor-section summary { padding: 13px 19px; cursor: pointer; font-size: 14px; }
+.sensor-section summary::marker { color: var(--muted); }
+.sensor-section summary:focus-visible { outline-offset: -3px; }
+.sensor-section summary strong { margin-inline-start: 5px; }
+.sensor-section summary span { float: right; color: var(--muted); font-size: 12px; }
 .controls { grid-column: 2; grid-row: 1 / span 2; }
 .controls form, .settings form, .console-card form { padding: 3px 19px 19px; }
 label { display: block; color: var(--text); font-weight: 600; font-size: 13px; }

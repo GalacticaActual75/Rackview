@@ -72,11 +72,18 @@
               <div><h2>Sensor readings</h2><p id="sensor-count">Waiting for sensor readings</p></div>
               <div class="sensor-filters">
                 <input id="sensor-search" type="search" placeholder="Find a sensor" aria-label="Find a sensor">
-                <select id="sensor-kind" aria-label="Sensor type"><option value="all">All types</option><option value="fan">Fans</option><option value="temperature">Temperatures</option><option value="other">Other sensors</option></select>
+                <select id="sensor-kind" aria-label="Sensor section"><option value="all">All sections</option></select>
                 <label class="sensor-availability"><input id="show-unavailable" type="checkbox"> Show unavailable</label>
               </div>
             </div>
-            <div class="table-scroll"><table><thead><tr><th scope="col">Sensor</th><th scope="col" class="reading">Reading</th><th scope="col">Status</th></tr></thead><tbody id="sensors-body"></tbody></table></div>
+            <div id="sensor-sections"></div>
+            <p id="sensors-empty" class="empty">No sensor readings yet.</p>
+            <template id="sensor-section">
+              <details class="sensor-section">
+                <summary><strong></strong><span></span></summary>
+                <div class="table-scroll"><table><thead><tr><th scope="col">Sensor</th><th scope="col" class="reading">Reading</th><th scope="col">Status</th></tr></thead><tbody></tbody></table></div>
+              </details>
+            </template>
           </section>
         </section>
         <section id="connection" class="view" aria-labelledby="connection-title" hidden>

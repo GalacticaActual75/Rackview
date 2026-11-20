@@ -76,15 +76,61 @@ function renderRows(body, rows, empty) {
   body.replaceChildren(fragment);
 }
 
-function renderSensors() {
+// Match the reading's function first. For generic labels like "Presence", use
+// the hardware entity from the IPMI sensor record (decimal entity IDs).
+const sensorSections = [
+  { label: 'Cooling & fans', name: /\bfans?\b|\bfan\d/i, unit: /^RPM$/i, entities: [29, 30] },
+  { label: 'Temperatures', name: /temp(?:erature)?\b|thermal/i, unit: /^degrees [CFK]$/i },
+  { label: 'Utilization', name: /usage|utilization/i },
+  { label: 'Voltage rails', name: /\bPG\b|power good|\bVCORE\b/i },
+  { label: 'Storage & backplanes', name: /drive|disk|backplane|\bBP\d|\bSAS\b|RAID|vFlash/i, entities: [4, 15, 26, 50, 51] },
+  { label: 'Cables & network', name: /cable|\bNIC\b|ethernet|network/i, entities: [31, 42] },
+  { label: 'Power supplies & electrical', name: /power|\bpwr\b|\bPSU?\d*\b|voltage|current|battery/i, unit: /^(volts?|amps?|watts?)$/i, entities: [10, 14, 19, 20, 21, 40] },
+  { label: 'Processors & memory', name: /\bCPU|processor|\bDIMM|memory/i, entities: [3, 8, 9, 18, 32, 43, 65] },
+  { label: 'Expansion cards & slots', name: /PCIe?|riser|add-in card/i, entities: [11, 16, 48, 49] },
+  { label: 'System & chassis' },
+];
+const systemSection = sensorSections.at(-1);
+
+for (const section of sensorSections) {
+  const { label } = section;
+  const details = $('sensor-section').content.firstElementChild.cloneNode(true);
+  details.querySelector('strong').textContent = label;
+  details.querySelector('table').setAttribute('aria-label', label);
+  details.open = section === sensorSections[0] || section === sensorSections[1];
+  $('sensor-sections').append(details);
+  section.details = details;
+  $('sensor-kind').add(new Option(label, label));
+}
+
+function renderSensors(event) {
   const rows = state?.sensors ?? [];
   const kind = $('sensor-kind').value;
   const query = $('sensor-search').value.trim().toLowerCase();
   const showUnavailable = $('show-unavailable').checked;
-  const filtered = rows.filter((sensor) => (showUnavailable || sensor.reading !== null)
-    && (kind === 'all' || sensor.kind === kind) && sensor.name.toLowerCase().includes(query));
-  $('sensor-count').textContent = `${filtered.length} of ${rows.length} sensors`;
-  renderRows($('sensors-body'), filtered, rows.length ? 'No matching sensors.' : 'No sensor readings yet.');
+  const groups = new Map(sensorSections.map(section => [section, []]));
+  let visible = 0;
+  for (const sensor of rows) {
+    if (!showUnavailable && sensor.reading === null) continue;
+    const entity = Number(sensor.entity?.split('.')[0]);
+    const section = sensorSections.find(s => s.unit?.test(sensor.unit) || s.name?.test(sensor.name))
+      ?? sensorSections.find(s => s.entities?.includes(entity)) ?? systemSection;
+    if (kind !== 'all' && kind !== section.label) continue;
+    if (!sensor.name.toLowerCase().includes(query) && !section.label.toLowerCase().includes(query)) continue;
+    groups.get(section).push(sensor);
+    visible++;
+  }
+  for (const [section, matches] of groups) {
+    const { details } = section;
+    details.hidden = !matches.length;
+    if (!matches.length) continue;
+    if (event && (kind !== 'all' || query)) details.open = true;
+    details.querySelector('summary span').textContent = `${matches.length} ${matches.length === 1 ? 'sensor' : 'sensors'}`;
+    renderRows(details.querySelector('tbody'), matches);
+  }
+  $('sensor-count').textContent = `${visible} of ${rows.length} sensors`;
+  $('sensors-empty').hidden = visible > 0;
+  $('sensors-empty').textContent = rows.length ? 'No matching sensors.' : 'No sensor readings yet.';
 }
 
 function renderTelemetry() {
