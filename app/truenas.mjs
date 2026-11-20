@@ -46,10 +46,19 @@ export function readNas(config, WebSocket) {
         if (id === 1) {
           if (result?.response_type !== 'SUCCESS') return fail('TrueNAS rejected the account or API key.');
           const privilege = result.user_info?.privilege;
-          const roles = privilege?.roles;
-          if (!Array.isArray(roles) || !roles.length || privilege.web_shell ||
-            !roles.every(role => role === 'READONLY_ADMIN' || typeof role === 'string' && role.endsWith('_READ'))) {
-            return fail('Use a TrueNAS service account with read-only roles and no web shell.');
+          // TrueNAS encodes a Python set as {"$set": [...]} in extended JSON.
+          const returned = privilege?.roles;
+          const roles = Array.isArray(returned) ? returned : returned?.$set;
+          if (!Array.isArray(roles) || !roles.length || typeof privilege.web_shell !== 'boolean' ||
+              !roles.every(role => typeof role === 'string' && /^[A-Z][A-Z0-9_]*$/.test(role))) {
+            return fail('Login succeeded, but Rackview could not verify the permissions returned by TrueNAS.');
+          }
+          const extra = roles.filter(role => role !== 'READONLY_ADMIN' && !role.endsWith('_READ'));
+          if (extra.length) {
+            return fail(`Login succeeded, but TrueNAS granted roles beyond read-only access: ${extra.slice(0, 4).join(', ')}. Check the account’s group privileges.`);
+          }
+          if (privilege.web_shell) {
+            return fail('Login succeeded, but TrueNAS reports web shell access in the account’s effective privileges. Check the privileges assigned to its groups.');
           }
           call('pool.query', [[], { select: ['name', 'status', 'healthy', 'allocated', 'free', 'scan'] }]);
         } else if (id === 2) {
