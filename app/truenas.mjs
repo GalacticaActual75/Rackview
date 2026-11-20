@@ -54,8 +54,10 @@ export function readNas(config, WebSocket) {
     socket.on('message', raw => {
       try {
         const response = JSON.parse(raw);
-        if (id === 5 && response.method === 'collection_update' &&
-            response.params?.collection === 'reporting.realtime' && response.params.event === 'ADDED') {
+        const reportingEvent = id === 5 && response.params?.collection === 'reporting.realtime';
+        if (reportingEvent && response.method === 'notify_unsubscribed') return finish();
+        if (reportingEvent && response.method === 'collection_update' &&
+            (response.params.msg === 'added' || response.params.event === 'ADDED')) {
           const fields = response.params.fields;
           if (!fields || typeof fields !== 'object') return finish();
           const interfaces = Object.entries(fields.interfaces ?? {}).map(([name, nic]) =>

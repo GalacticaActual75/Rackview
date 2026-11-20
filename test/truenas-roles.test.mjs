@@ -24,7 +24,7 @@ function loginWith(privilege, calls, reporting = true) {
         emit({ id, result: results[method] });
         if (method === 'core.subscribe') {
           assert.deepEqual(params, ['reporting.realtime']);
-          emit({ method: 'collection_update', params: { collection: 'reporting.realtime', event: 'ADDED', fields: {
+          emit({ method: 'collection_update', params: { collection: 'reporting.realtime', msg: 'added', fields: {
             cpu: { cpu: { usage: 0 } }, disks: { read_bytes: 1234, write_bytes: 0 },
             memory: { arc_size: 456, physical_memory_total: 4096, physical_memory_available: 1000 },
             interfaces: { eth0: { received_bytes_rate: 123, sent_bytes_rate: 0, link_state: 'LINK_STATE_UP' } },
