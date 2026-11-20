@@ -126,7 +126,7 @@ export async function createDashboard({ dataDir, user, password, run = ipmi, ws,
     if (Date.now() - lastAttempt < SENSOR_INTERVAL) return;
     reading = (async () => {
       try {
-        const rows = parseSensors(await run(connection, ['-c', 'sensor', 'list']));
+        const rows = parseSensors(await run(connection, ['sdr', 'elist']));
         if (!rows.length) throw new Error('No sensor records were returned.');
         sensors = rows;
         updatedAt = new Date().toISOString();

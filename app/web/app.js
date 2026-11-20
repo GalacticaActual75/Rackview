@@ -56,11 +56,12 @@ function renderRows(body, rows, empty) {
     reading.className = 'reading';
     const numeric = sensor.value !== null;
     const unit = numeric ? ` ${sensorUnit(sensor.unit)}` : '';
-    reading.textContent = sensor.reading === null ? '—' : `${numeric ? number.format(sensor.value) : sensor.reading}${unit}`;
+    reading.textContent = sensor.reading === null ? '—' : numeric
+      ? [number.format(sensor.value) + unit, sensor.state].filter(Boolean).join(', ') : sensor.reading;
     const status = document.createElement('span');
     const code = sensor.status.toLowerCase();
-    status.className = `sensor-status ${code === 'ok' ? 'good' : ['na', 'ns'].includes(code) ? '' : 'alert'}`;
-    status.textContent = { ok: 'OK', na: 'Unavailable', ns: 'No status', nc: 'Non-critical', cr: 'Critical', nr: 'Non-recoverable', lnc: 'Low warning', unc: 'High warning', lcr: 'Low critical', ucr: 'High critical', lnr: 'Low non-recoverable', unr: 'High non-recoverable' }[code] ?? sensor.status;
+    status.className = `sensor-status ${code === 'ok' ? 'good' : /^(?:[lu]?(?:nc|cr|nr))$/.test(code) ? 'alert' : ''}`;
+    status.textContent = { ok: 'OK', reported: 'Reported', na: 'Unavailable', ns: 'No status', nc: 'Non-critical', cr: 'Critical', nr: 'Non-recoverable', lnc: 'Low warning', unc: 'High warning', lcr: 'Low critical', ucr: 'High critical', lnr: 'Low non-recoverable', unr: 'High non-recoverable' }[code] ?? sensor.status;
     row.insertCell().append(status);
     fragment.append(row);
   }
