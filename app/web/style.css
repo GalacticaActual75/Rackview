@@ -109,8 +109,8 @@ input[type='range'] { flex: 1; min-width: 0; accent-color: var(--accent); margin
 .settings { max-width: 665px; }
 .form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
 .wide { grid-column: 1 / -1; }
-.form-grid input, .sensor-filters input[type="search"], .sensor-filters select { width: 100%; min-height: 39px; padding: 7px 10px; background: var(--field); color: var(--text); border: 1px solid var(--border); border-radius: 7px; font-weight: 400; }
-.form-grid input { display: block; margin-top: 7px; }
+.form-grid input, .form-grid select, .sensor-filters input[type="search"], .sensor-filters select { width: 100%; min-height: 39px; padding: 7px 10px; background: var(--field); color: var(--text); border: 1px solid var(--border); border-radius: 7px; font-weight: 400; }
+.form-grid input, .form-grid select { display: block; margin-top: 7px; }
 .form-grid .hint { display: block; margin-top: 6px; }
 .settings-buttons { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 19px; }
 .test-details { margin: 12px 0 0; font-size: 13px; }

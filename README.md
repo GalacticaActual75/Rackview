@@ -44,6 +44,8 @@ Disable the existing TrueNAS fan-control cron job when you hand fan control over
 
 ## Embedded Virtual Console
 
+Rackview remembers successful console connections for each iDRAC in its persistent data directory. Reopen **Virtual Console** to reuse the most recent port, TLS setting, and certificate fingerprint, or choose another profile under **Saved connections**. Select **Remember VNC password on this Rackview server** to store the VNC password in the same private data directory. **Forget saved connection** removes the selected profile and its saved password.
+
 Open **Virtual Console** and select **VNC setup** for Dell's first-time setup paths and version-specific guides. On iDRAC8, the VNC feature requires an Enterprise license. Rackview uses the saved iDRAC IP and the VNC port and password you enter. The usual port is TCP `5901`, and the VNC password is separate from the iDRAC login password. Dell allows a single active VNC session. [Dell iDRAC8 VNC guide](https://www.dell.com/support/manuals/en-us/idrac7-8-lifecycle-controller-v2.30.30.30/idrac8_2.30.30.30_ug/using-vnc-client-to-manage-remote-server?guid=guid-bf36a9fe-9ec5-4f2b-91cd-3a428bb8eb26&lang=en-us)
 
 Match the iDRAC VNC server's TLS setting. For a self-signed certificate, provide the verified SHA-256 fingerprint of the certificate served on the VNC port. From a trusted management network, set `IDRAC_ADDRESS` to your controller's address and run `openssl s_client -connect "${IDRAC_ADDRESS}:5901" -showcerts </dev/null | openssl x509 -noout -fingerprint -sha256`. Rackview verifies a provided fingerprint before forwarding console traffic. The embedded VNC session covers keyboard, video, and mouse. Dell manages virtual media through its native console.

@@ -68,6 +68,28 @@ function digest(value) {
   return createHash('sha256').update(value).digest();
 }
 
+function consoleEndpoint(input) {
+  const { port, encrypted } = input;
+  const fingerprint = typeof input.fingerprint === 'string' ? input.fingerprint.replace(/[:\s]/g, '').toUpperCase() : '';
+  if (!Number.isInteger(port) || port < 1024 || port > 65535 || typeof encrypted !== 'boolean') {
+    throw new HttpError(400, 'Enter the iDRAC VNC port and transport.');
+  }
+  if (fingerprint && (!encrypted || !/^[A-F0-9]{64}$/.test(fingerprint))) {
+    throw new HttpError(400, 'Enter a SHA-256 server certificate fingerprint for TLS.');
+  }
+  return { port, encrypted, fingerprint };
+}
+
+async function saveJson(path, value) {
+  const temporary = `${path}.${randomBytes(8).toString('hex')}.tmp`;
+  try {
+    await writeFile(temporary, JSON.stringify(value), { mode: 0o600, flag: 'wx' });
+    await rename(temporary, path);
+  } finally {
+    await rm(temporary, { force: true }).catch(() => {});
+  }
+}
+
 async function dashboardCredentials(dataDir) {
   const user = process.env.DASHBOARD_USER;
   const password = process.env.DASHBOARD_PASSWORD;
@@ -96,6 +118,19 @@ export async function createDashboard({ dataDir, user, password, run = ipmi, ws,
     connection = validateConnection(JSON.parse(await readFile(configPath, 'utf8')));
   } catch (error) {
     if (error.code !== 'ENOENT') throw new Error('The saved iDRAC connection could not be loaded.');
+  }
+
+  const profilesPath = join(dataDir, 'console-profiles.json');
+  let profiles = [];
+  try {
+    profiles = JSON.parse(await readFile(profilesPath, 'utf8'));
+    if (!Array.isArray(profiles)) throw new Error();
+  } catch (error) {
+    if (error.code !== 'ENOENT') throw new Error('The saved VNC profiles could not be loaded.');
+  }
+  function visibleProfiles() {
+    return profiles.filter(p => p.host === connection?.host).map(({ id, port, encrypted, fingerprint, password }) =>
+      ({ id, port, encrypted, fingerprint, hasPassword: !!password }));
   }
 
   const credentials = digest(`${user}:${password}`);
@@ -145,13 +180,7 @@ export async function createDashboard({ dataDir, user, password, run = ipmi, ws,
   }
 
   async function save(next) {
-    const temporary = `${configPath}.${randomBytes(8).toString('hex')}.tmp`;
-    try {
-      await writeFile(temporary, JSON.stringify(next), { mode: 0o600, flag: 'wx' });
-      await rename(temporary, configPath);
-    } finally {
-      await rm(temporary, { force: true }).catch(() => {});
-    }
+    await saveJson(configPath, next);
     if (connection?.host !== next.host) lastCommand = null;
     connection = next;
     revision = randomBytes(16).toString('hex');
@@ -222,6 +251,7 @@ export async function createDashboard({ dataDir, user, password, run = ipmi, ws,
         await refresh();
         return json(response, 200, {
           connection: connection ? { host: connection.host, user: connection.user } : null,
+          consoleProfiles: visibleProfiles(),
           csrf, revision, sensors, updatedAt, sensorError, lastCommand, consoleAvailable: !!issueConsoleTicket, pollMs: SENSOR_INTERVAL,
         });
       }
@@ -251,20 +281,32 @@ export async function createDashboard({ dataDir, user, password, run = ipmi, ws,
         if (url === '/api/fans') {
           return json(response, 200, { lastCommand: await exclusive(() => setFanControl(input)) });
         }
-        if (url === '/api/console/ticket') {
-          if (!issueConsoleTicket) throw new HttpError(503, 'The console bridge is unavailable.');
+        if (['/api/console/ticket', '/api/console/profiles/save', '/api/console/profiles/forget'].includes(url)) {
           if (!connection || input?.revision !== revision) throw new HttpError(409, 'Save or refresh the iDRAC connection first.');
-          const { port, encrypted } = input;
-          const fingerprint = typeof input.fingerprint === 'string' ? input.fingerprint.replace(/[:\s]/g, '').toUpperCase() : '';
-          if (!Number.isInteger(port) || port < 1024 || port > 65_535 || typeof encrypted !== 'boolean') {
-            throw new HttpError(400, 'Enter the iDRAC VNC port and transport.');
+          const endpoint = consoleEndpoint(input);
+          const host = connection.host;
+          const id = digest(JSON.stringify([host, endpoint.port, endpoint.encrypted, endpoint.fingerprint])).toString('hex');
+          const saved = profiles.find(p => p.id === id && p.host === host);
+          if (url === '/api/console/ticket') {
+            if (!issueConsoleTicket) throw new HttpError(503, 'The console bridge is unavailable.');
+            if (input.useSaved && (!saved?.password || input.profileId !== id)) throw new HttpError(409, 'Enter the VNC password for these settings.');
+            const ticket = issueConsoleTicket({ host, revision, ...endpoint });
+            if (!ticket) throw new HttpError(409, 'A Rackview console session is already open.');
+            return json(response, 200, { ticket, password: input.useSaved ? saved.password : undefined });
           }
-          if (fingerprint && (!encrypted || !/^[A-F0-9]{64}$/.test(fingerprint))) {
-            throw new HttpError(400, 'Enter a SHA-256 server certificate fingerprint for TLS.');
-          }
-          const ticket = issueConsoleTicket({ host: connection.host, revision, port, encrypted, fingerprint });
-          if (!ticket) throw new HttpError(409, 'A Rackview console session is already open.');
-          return json(response, 200, { ticket });
+          await exclusive(async () => {
+            if (input.revision !== revision) throw new HttpError(409, 'The iDRAC connection changed.');
+            const next = profiles.filter(p => p.id !== id);
+            if (url.endsWith('/save')) {
+              if (input.password !== undefined && (typeof input.password !== 'string' || input.password.length > 1024)) {
+                throw new HttpError(400, 'Invalid VNC password.');
+              }
+              next.unshift({ id, host, ...endpoint, password: input.password || undefined });
+            } else if (input.profileId !== id) throw new HttpError(400, 'Select the saved connection to forget.');
+            await saveJson(profilesPath, next);
+            profiles = next;
+          });
+          return json(response, 200, { id, profiles: visibleProfiles() });
         }
       }
       return json(response, 404, { error: 'Page not found.' });

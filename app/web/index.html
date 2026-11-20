@@ -125,13 +125,15 @@
             <div class="console-actions" id="console-actions" hidden><button type="button" class="button secondary" id="disconnect-console">Disconnect</button><button type="button" class="button secondary" id="fullscreen-console">Full screen</button><button type="button" class="button secondary" id="console-cad">Send Ctrl+Alt+Del</button></div>
             <form id="console-form" autocomplete="off">
               <div class="form-grid">
+                <label class="wide">Saved connections<select id="vnc-profiles"><option value="">New connection</option></select></label>
                 <label>VNC port<input id="vnc-port" type="number" min="1024" max="65535" value="5901" required></label>
                 <label>VNC password<input id="vnc-password" type="password" autocomplete="new-password" required></label>
                 <label class="wide checkbox"><input id="vnc-tls" type="checkbox" checked> TLS encryption</label>
                 <label class="wide" id="fingerprint-label">SHA-256 certificate fingerprint<input id="vnc-fingerprint" placeholder="Optional if the certificate is already trusted" spellcheck="false"></label>
+                <label class="wide checkbox"><input id="vnc-remember" type="checkbox"> Remember VNC password on this Rackview server</label>
               </div>
               <p class="hint">Use the VNC-specific password. A self-signed TLS certificate needs a verified fingerprint.</p>
-              <div class="settings-buttons"><button type="submit" class="button primary" id="start-console" disabled>Connect to console</button></div>
+              <div class="settings-buttons"><button type="submit" class="button primary" id="start-console" disabled>Connect to console</button><button type="button" class="button secondary" id="forget-console" hidden>Forget saved connection</button></div>
             </form>
             <p id="console-result" class="result" role="status" hidden></p>
           </section>
