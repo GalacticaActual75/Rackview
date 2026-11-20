@@ -32,6 +32,30 @@ async function request(path, body) {
 const consoleView = setupConsole({ $, request, display, getStatus: () => state });
 const nasView = setupNas({ $, request, display, refresh });
 
+function updateFingerprintHelp(isNas) {
+  const command = $(isNas ? 'nas-pin-command' : 'vnc-pin-command');
+  let host = state?.connection?.host;
+  let port = $('vnc-port').valueAsNumber;
+  if (isNas) {
+    const url = URL.parse($('nas-url').value);
+    host = url?.protocol === 'https:' && !url.username && !url.password ? url.hostname : '';
+    port = Number(url?.port || 443);
+  }
+  if (host?.includes(':') && !host.startsWith('[')) host = `[${host}]`;
+  // Only insert a hostname/IP and numeric port into the copyable shell command.
+  if (!host || !/^(?:[a-z0-9.-]+|\[[a-f0-9:.]+\])$/i.test(host) || !Number.isInteger(port) || port < 1 || port > 65535) {
+    command.textContent = isNas ? 'Enter the TrueNAS HTTPS URL above to show the command.' : 'Save an iDRAC address and enter a valid VNC port to show the command.';
+    return;
+  }
+  command.textContent = `openssl s_client -connect ${host}:${port} </dev/null 2>/dev/null | openssl x509 -noout -fingerprint -sha256`;
+}
+
+for (const [id, isNas] of [['nas-pin-help', true], ['vnc-fingerprint-help', false]]) {
+  $(id).addEventListener('beforetoggle', event => {
+    if (event.newState === 'open') updateFingerprintHelp(isNas);
+  });
+}
+
 function navigate() {
   const requested = location.hash.slice(1);
   const defaultPage = state && !state.connection ? 'connection' : 'overview';
