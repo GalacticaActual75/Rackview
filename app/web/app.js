@@ -178,7 +178,12 @@ function renderStatus() {
   $('status-dot').dataset.state = status;
   $('connection-dot').dataset.state = status;
   $('status-text').textContent = label;
-  $('target-address').textContent = state.connection?.host ?? 'Setup required';
+  const host = state.connection?.host;
+  $('target-address').textContent = host ?? 'Setup required';
+  const idracLink = $('open-idrac');
+  idracLink.hidden = !host;
+  if (host) idracLink.href = `https://${host.includes(':') ? `[${host}]` : host}/`;
+  else idracLink.removeAttribute('href');
   $('connection-title').textContent = state.connection ? 'Connection' : 'Connect your iDRAC';
   $('connection-intro').textContent = state.connection ? 'Manage the iDRAC credentials Rackview uses.' : 'Enter your iDRAC login to start monitoring the server.';
   display('app-error', state.sensorError ? `Sensor update failed. ${state.sensorError}` : '', 'error');
