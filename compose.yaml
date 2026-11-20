@@ -1,7 +1,19 @@
 name: rackview
 
+# Set these in the project's local .env before the first launch.
+# RACKVIEW_DATA_SOURCE=   # Prepared absolute host path, or blank for a Docker volume
+# DASHBOARD_USER=        # Dashboard login name
+# DASHBOARD_PASSWORD=    # Dashboard login password
+
 services:
   rackview:
+    environment:
+      DASHBOARD_USER: "${DASHBOARD_USER:-}"
+      DASHBOARD_PASSWORD: "${DASHBOARD_PASSWORD:-}"
+    volumes:
+      - "${RACKVIEW_DATA_SOURCE:-connection}:/var/lib/rackview"
+    ports:
+      - "${RACKVIEW_BIND:+${RACKVIEW_BIND}:}${RACKVIEW_PORT:-8080}:8080"
     build:
       context: ./app
       dockerfile_inline: |
@@ -24,13 +36,6 @@ services:
     pull_policy: build
     init: true
     restart: unless-stopped
-    ports:
-      - "${RACKVIEW_BIND:+${RACKVIEW_BIND}:}${RACKVIEW_PORT:-8080}:8080"
-    environment:
-      DASHBOARD_USER: "${DASHBOARD_USER:-}"
-      DASHBOARD_PASSWORD: "${DASHBOARD_PASSWORD:-}"
-    volumes:
-      - "${RACKVIEW_DATA_SOURCE:-connection}:/var/lib/rackview"
     read_only: true
     cap_drop: [ALL]
     security_opt:
