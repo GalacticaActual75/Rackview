@@ -1,0 +1,6 @@
+*
+!server.mjs
+!ipmi.mjs
+!console.mjs
+!web/
+!web/**

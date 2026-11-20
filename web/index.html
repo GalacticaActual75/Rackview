@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>Rackview</title>
+  <link rel="stylesheet" href="/style.css">
+  <script type="module" src="/app.js"></script>
+</head>
+<body>
+  <div class="shell">
+    <aside class="sidebar">
+      <a class="brand" href="#overview">
+        <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span>
+        <span>Rackview</span>
+      </a>
+      <div class="target">
+        <span class="dot" id="connection-dot"></span>
+        <div><strong>Dell iDRAC</strong><span id="target-address">Setup required</span></div>
+      </div>
+      <nav aria-label="Dashboard">
+        <a href="#overview" data-page="overview"><span class="nav-icon" aria-hidden="true">◫</span> Overview</a>
+        <a href="#sensors" data-page="sensors"><span class="nav-icon" aria-hidden="true">≋</span> Sensors</a>
+        <a href="#connection" data-page="connection"><span class="nav-icon" aria-hidden="true">⚙</span> Connection</a>
+        <a href="#console" data-page="console"><span class="nav-icon" aria-hidden="true">▣</span> Virtual Console</a>
+      </nav>
+    </aside>
+    <main>
+      <header class="topbar">
+        <div class="connection-status" role="status"><span class="dot" id="status-dot"></span><span id="status-text">Connecting to dashboard</span></div>
+        <button class="button quiet" type="button" id="refresh"><span aria-hidden="true">↻</span> Refresh</button>
+      </header>
+      <div class="content">
+        <div id="app-error" class="notice error" role="alert" hidden></div>
+        <section id="overview" class="view" aria-labelledby="overview-title">
+          <div class="page-header"><h1 id="overview-title">Cooling overview</h1><p>Fan speeds, system temperatures, and fan control.</p></div>
+          <div class="summary">
+            <article class="card metric"><h2>Average fan speed</h2><div class="metric-value"><strong id="average-rpm">—</strong> <span>RPM</span></div><p id="fan-summary">Waiting for fan readings</p></article>
+            <article class="card metric"><h2>Hottest sensor</h2><div class="metric-value"><strong id="peak-temp">—</strong> <span id="peak-unit">°C</span></div><p id="temp-summary">Waiting for temperature readings</p></article>
+            <article class="card metric"><h2>Last fan command</h2><div class="metric-value"><strong class="word" id="last-mode">Unknown</strong></div><p id="mode-summary">No command sent by Rackview</p></article>
+          </div>
+          <div class="overview-grid">
+            <section class="card telemetry">
+              <div class="card-header"><div><h2>Fan speeds</h2><p>Measured RPM per fan</p></div></div>
+              <div class="table-scroll"><table><thead><tr><th scope="col">Fan</th><th scope="col" class="reading">Speed</th><th scope="col">Status</th></tr></thead><tbody id="fans-body"></tbody></table></div>
+            </section>
+            <section class="card controls">
+              <div class="card-header"><div><h2>Fan control</h2><p>Set a shared speed or restore iDRAC control.</p></div></div>
+              <form id="fan-form">
+                <label for="speed-range">Manual fan duty</label>
+                <div class="range-row"><input id="speed-range" type="range" min="0" max="100" value="35"><div class="percent"><input id="speed-number" type="number" min="0" max="100" step="1" value="35" aria-label="Manual fan duty percentage" required><span>%</span></div></div>
+                <div class="range-scale" aria-hidden="true"><span>0%</span><span>50%</span><span>100%</span></div>
+                <div class="control-buttons">
+                  <button type="submit" id="set-manual" class="button primary" disabled>Apply manual speed</button>
+                  <button type="button" id="set-auto" class="button secondary" disabled>Restore automatic</button>
+                </div>
+                <p class="hint">Manual speed stays fixed as temperatures change. Monitor the system or restore automatic control before leaving it unattended.</p>
+                <p id="command-result" class="result" role="status" hidden></p>
+              </form>
+            </section>
+            <section class="card telemetry">
+              <div class="card-header"><div><h2>Temperature sensors</h2><p>Readings exposed by iDRAC</p></div><a class="text-link" href="#sensors">All sensors <span aria-hidden="true">→</span></a></div>
+              <div class="table-scroll"><table><thead><tr><th scope="col">Sensor</th><th scope="col" class="reading">Temperature</th><th scope="col">Status</th></tr></thead><tbody id="temps-body"></tbody></table></div>
+            </section>
+          </div>
+        </section>
+        <section id="sensors" class="view" aria-labelledby="sensors-title" hidden>
+          <div class="page-header"><h1 id="sensors-title">Sensors</h1><p>Browse the hardware readings available over IPMI.</p></div>
+          <section class="card telemetry">
+            <div class="card-header sensor-toolbar"><div><h2>Sensor readings</h2><p id="sensor-count">Waiting for sensor readings</p></div><div class="sensor-filters"><input id="sensor-search" type="search" placeholder="Find a sensor" aria-label="Find a sensor"><select id="sensor-kind" aria-label="Sensor type"><option value="all">All types</option><option value="fan">Fans</option><option value="temperature">Temperatures</option><option value="other">Other sensors</option></select></div></div>
+            <div class="table-scroll"><table><thead><tr><th scope="col">Sensor</th><th scope="col" class="reading">Reading</th><th scope="col">Status</th></tr></thead><tbody id="sensors-body"></tbody></table></div>
+          </section>
+        </section>
+        <section id="connection" class="view" aria-labelledby="connection-title" hidden>
+          <div class="page-header"><h1 id="connection-title">Connect your iDRAC</h1><p id="connection-intro">Enter your iDRAC login to start monitoring the server.</p></div>
+          <section class="card settings">
+            <div class="card-header"><div><h2>IPMI over LAN</h2><p>Test the credentials from inside the container before saving.</p></div></div>
+            <form id="connection-form" autocomplete="off">
+              <div class="form-grid">
+                <label>iDRAC IP address<input id="host" name="host" spellcheck="false" required></label>
+                <label>iDRAC username<input id="user" name="user" spellcheck="false" maxlength="16" required></label>
+                <label class="wide">iDRAC password<input id="password" name="password" type="password" autocomplete="new-password" aria-describedby="password-hint"><span id="password-hint" class="hint">Enter the password for this iDRAC account.</span></label>
+              </div>
+              <div class="settings-buttons"><button id="save-connection" class="button primary" type="submit" disabled>Save connection</button><button id="test-connection" class="button secondary" type="button" disabled>Test connection</button></div>
+              <p id="connection-result" class="result" role="status" hidden></p>
+              <dl class="test-details" id="test-details" hidden></dl>
+            </form>
+          </section>
+        </section>
+        <section id="console" class="view" aria-labelledby="console-title" hidden>
+          <div class="page-header"><h1 id="console-title">Virtual Console</h1><p>Use the server’s screen, keyboard, and mouse from Rackview.</p></div>
+          <section class="card console-card">
+            <div class="card-header">
+              <div><h2>Remote screen</h2><p id="console-status" role="status">Disconnected</p></div>
+              <details class="vnc-help" id="vnc-help">
+                <summary class="button quiet"><span aria-hidden="true">ⓘ</span> VNC setup</summary>
+                <div class="help-panel">
+                  <h3>Enable VNC on iDRAC</h3>
+                  <ul>
+                    <li><a href="https://www.dell.com/support/manuals/en-us/integrated-dell-remote-access-cntrllr-7-v1.50.50/idrac7ug1.50.50-v1/using-vnc-client-to-manage-remote-server?guid=guid-bf36a9fe-9ec5-4f2b-91cd-3a428bb8eb26&amp;lang=en-us" target="_blank" rel="noopener noreferrer">iDRAC7</a> and <a href="https://www.dell.com/support/manuals/en-us/integrated-dell-remote-access-cntrllr-8-with-lifecycle-controller-v2.00.00.00/idrac8_ug_pub-v1/configuring-vnc-server-using-idrac-web-interface?guid=guid-20ef1550-da56-43fd-83c5-567309a924cc&amp;lang=en-us" target="_blank" rel="noopener noreferrer">iDRAC8</a><span>Overview → iDRAC Settings → Network → Services</span></li>
+                    <li><a href="https://www.dell.com/support/manuals/en-us/idrac9-lifecycle-controller-v7.x-series/idrac9_scg_tta/vnc-security?guid=guid-5178d6cd-b084-47bc-a36c-0655cb148017&amp;lang=en-us" target="_blank" rel="noopener noreferrer">iDRAC9</a> and <a href="https://www.dell.com/support/manuals/en-uk/poweredge-r7715/idrac10_1.20.xx_ug/configuring-vnc-server-using-idrac-web-interface?guid=guid-2fc3315c-7522-45ab-9073-1c3c88703c62&amp;lang=en-us" target="_blank" rel="noopener noreferrer">iDRAC10</a><span>Configuration → Virtual Console</span></li>
+                  </ul>
+                  <p>In <strong>VNC Server</strong>, enable the service, set the VNC password and port, choose SSL encryption, and click <strong>Apply</strong>. Enter the same port, password, and encryption setting in Rackview.</p>
+                  <p>VNC requires an iDRAC license that includes the feature. iDRAC8 requires Enterprise.</p>
+                </div>
+              </details>
+            </div>
+            <div id="console-screen" class="console-screen" hidden></div>
+            <div class="console-actions" id="console-actions" hidden><button type="button" class="button secondary" id="disconnect-console">Disconnect</button><button type="button" class="button secondary" id="fullscreen-console">Full screen</button><button type="button" class="button secondary" id="console-cad">Send Ctrl+Alt+Del</button></div>
+            <form id="console-form" autocomplete="off">
+              <div class="form-grid">
+                <label>VNC port<input id="vnc-port" type="number" min="1024" max="65535" value="5901" required></label>
+                <label>VNC password<input id="vnc-password" type="password" autocomplete="new-password" required></label>
+                <label class="wide checkbox"><input id="vnc-tls" type="checkbox" checked> TLS encryption</label>
+                <label class="wide" id="fingerprint-label">SHA-256 certificate fingerprint<input id="vnc-fingerprint" placeholder="Optional if the certificate is already trusted" spellcheck="false"></label>
+              </div>
+              <p class="hint">Use the VNC-specific password. A self-signed TLS certificate needs a verified fingerprint.</p>
+              <div class="settings-buttons"><button type="submit" class="button primary" id="start-console" disabled>Connect to console</button></div>
+            </form>
+            <p id="console-result" class="result" role="status" hidden></p>
+          </section>
+        </section>
+      </div>
+    </main>
+  </div>
+</body>
+</html>

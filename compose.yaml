@@ -1,0 +1,27 @@
+services:
+  rackview:
+    build: .
+    image: rackview-ipmi:local
+    pull_policy: build
+    init: true
+    restart: unless-stopped
+    ports:
+      - "${RACKVIEW_BIND:+${RACKVIEW_BIND}:}${RACKVIEW_PORT:-8080}:8080"
+    environment:
+      DASHBOARD_USER: "${DASHBOARD_USER:-}"
+      DASHBOARD_PASSWORD: "${DASHBOARD_PASSWORD:-}"
+      DATA_DIR: /var/lib/rackview
+    volumes:
+      - connection:/var/lib/rackview
+    read_only: true
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: [CMD, node, -e, "fetch('http://localhost:8080/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+volumes:
+  connection:
