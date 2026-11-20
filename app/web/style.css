@@ -74,6 +74,8 @@ td.reading { font-family: var(--mono); font-size: 12px; }
 .sensor-status.good { color: var(--green); background: #203630; }
 .sensor-status.alert { color: var(--yellow); background: #433627; }
 .empty { color: var(--muted); padding-block: 18px; }
+.nas-panel { margin-top: 18px; }
+#nas-alerts { margin: 8px 0 0; padding-left: 18px; font-size: 13px; }
 #sensors-empty { padding-inline: 19px; }
 .sensor-section { border-top: 1px solid var(--border); }
 .sensor-section summary { padding: 13px 19px; cursor: pointer; font-size: 14px; }

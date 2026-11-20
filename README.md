@@ -42,6 +42,15 @@ The IPMI test requires access over UDP `623` and IPMI over LAN enabled in iDRAC.
 
 Disable the existing TrueNAS fan-control cron job when you hand fan control over to Rackview. Otherwise the cron job can switch iDRAC back to manual after you restore automatic control from Rackview. **Last fan command** reports what Rackview last confirmed during the current run. The fan mode can't be inferred from RPM or confirmed across controller resets or out-of-band changes. The app sends no fan commands when it starts. A manual command sets a fixed duty until iDRAC resumes automatic control or another controller changes it.
 
+## TrueNAS read-only monitoring
+
+Rackview supports the TrueNAS 25.10 JSON-RPC WebSocket API. On **Overview**, the TrueNAS storage panel shows pool health, allocated and free capacity, scrub or resilver progress, and active alerts.
+
+1. In TrueNAS, create a dedicated local user with the **Read-Only Administrator** privilege and web shell disabled. The key inherits that user's permissions. [TrueNAS roles](https://api.truenas.com/v25.10/rbac.html)
+2. In **User API Keys**, add a key for that user and copy it. [TrueNAS API key guide](https://www.truenas.com/docs/scale/toptoolbar/managingapikeys/)
+3. Open Rackview over HTTPS when entering credentials. Go to **Connection → TrueNAS read-only API**. Enter the HTTPS address that serves the TrueNAS web interface, including its port, the account name, and the key. For a private or self-signed certificate, enter its SHA-256 fingerprint after verifying it against the certificate configured on TrueNAS. Rackview checks the TLS peer before sending the key.
+4. Select **Test TrueNAS connection**, then **Save TrueNAS connection**. Both actions verify account permissions and read the pool and alert lists. The saved key lives in the private data mount. Return to **Overview** to see the readings.
+
 ## Embedded Virtual Console
 
 Rackview remembers successful console connections for each iDRAC in its persistent data directory. Reopen **Virtual Console** to reuse the most recent port, TLS setting, and certificate fingerprint, or choose another profile under **Saved connections**. Select **Remember VNC password on this Rackview server** to store the VNC password in the same private data directory. **Forget saved connection** removes the selected profile and its saved password.

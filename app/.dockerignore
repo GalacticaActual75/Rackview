@@ -3,5 +3,6 @@
 !server.mjs
 !ipmi.mjs
 !console.mjs
+!truenas.mjs
 !web/
 !web/**

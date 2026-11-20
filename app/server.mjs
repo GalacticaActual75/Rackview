@@ -7,12 +7,14 @@ import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { AUTOMATIC, MANUAL, ipmi, parseController, parseSensors, speedCommand } from './ipmi.mjs';
 import { installConsole } from './console.mjs';
+import { nasConnection, readNas } from './truenas.mjs';
 
 const SENSOR_INTERVAL = 10_000;
 const assets = new Map([
   ['/', ['index.html', 'text/html']],
   ['/app.js', ['app.js', 'text/javascript']],
   ['/console.js', ['console.js', 'text/javascript']],
+  ['/truenas.js', ['truenas.js', 'text/javascript']],
   ['/style.css', ['style.css', 'text/css']],
 ]);
 
@@ -134,6 +136,19 @@ export async function createDashboard({ dataDir, user, password, run = ipmi, ws,
   }
 
   const credentials = digest(`${user}:${password}`);
+  const nasPath = join(dataDir, 'truenas.json');
+  let nas = null;
+  try { nas = nasConnection(JSON.parse(await readFile(nasPath, 'utf8'))); }
+  catch (error) { if (error.code !== 'ENOENT') throw new Error('The saved TrueNAS connection could not be loaded.'); }
+  let nasRevision = randomBytes(16).toString('hex');
+  let nasSaving = false;
+  let nasRead;
+  let nasReadAt = 0;
+  async function queryNas(config) {
+    if (!ws) throw new HttpError(503, 'TrueNAS WebSocket support is unavailable.');
+    try { return await readNas(config, ws.WebSocket ?? ws); }
+    catch (error) { throw new HttpError(502, error.message); }
+  }
   const csrf = randomBytes(32).toString('base64url');
   let revision = randomBytes(16).toString('hex');
   let lastCommand = null;
@@ -252,14 +267,41 @@ export async function createDashboard({ dataDir, user, password, run = ipmi, ws,
         return json(response, 200, {
           connection: connection ? { host: connection.host, user: connection.user } : null,
           consoleProfiles: visibleProfiles(),
+          nas: nas ? { url: nas.url, user: nas.user, fingerprint: nas.fingerprint } : null, nasRevision,
           csrf, revision, sensors, updatedAt, sensorError, lastCommand, consoleAvailable: !!issueConsoleTicket, pollMs: SENSOR_INTERVAL,
         });
+      }
+      if (method === 'GET' && url === '/api/truenas/status') {
+        if (!nas) throw new HttpError(409, 'Set up the read-only TrueNAS connection first.');
+        if (!nasRead || Date.now() - nasReadAt > 30000) {
+          nasReadAt = Date.now();
+          nasRead = queryNas(nas);
+        }
+        return json(response, 200, await nasRead);
       }
       if (method === 'POST') {
         if (request.headers['x-csrf-token'] !== csrf || request.headers['sec-fetch-site'] === 'cross-site') {
           throw new HttpError(403, 'Refresh Rackview and try again.');
         }
         const input = await readJson(request);
+        if (url === '/api/truenas/test' || url === '/api/truenas/save') {
+          if (nasSaving || input?.revision !== nasRevision) throw new HttpError(409, 'TrueNAS settings changed or are being saved. Refresh and try again.');
+          let config;
+          try { config = nasConnection(input, nas); } catch (error) { throw new HttpError(400, error.message); }
+          const saving = url.endsWith('/save');
+          if (saving) nasSaving = true;
+          try {
+            const snapshot = await queryNas(config);
+            if (saving) {
+              await saveJson(nasPath, config);
+              nas = config;
+              nasRevision = randomBytes(16).toString('hex');
+              nasRead = Promise.resolve(snapshot);
+              nasReadAt = Date.now();
+            }
+            return json(response, 200, { pools: snapshot.pools.length, alerts: snapshot.alerts.length });
+          } finally { if (saving) nasSaving = false; }
+        }
         if (url === '/api/connection/test') {
           const details = await exclusive(async () => {
             const next = validateConnection(input, connection);

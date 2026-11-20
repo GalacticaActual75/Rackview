@@ -26,7 +26,7 @@ services:
         RUN sed -i '/^[[:blank:]]*encs\.push(encodings\.encodingTightPNG);[[:blank:]]*$/d' /usr/share/novnc/core/rfb.js \
             && ! grep -Fq 'encs.push(encodings.encodingTightPNG)' /usr/share/novnc/core/rfb.js
         WORKDIR /app
-        COPY server.mjs ipmi.mjs console.mjs ./
+        COPY server.mjs ipmi.mjs console.mjs truenas.mjs ./
         COPY web/ ./web/
         ENV DATA_DIR=/var/lib/rackview
         USER node

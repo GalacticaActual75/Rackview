@@ -1,4 +1,5 @@
 import { setupConsole } from './console.js';
+import { setupNas } from './truenas.js';
 
 const $ = (id) => document.getElementById(id);
 let state;
@@ -29,6 +30,7 @@ async function request(path, body) {
 }
 
 const consoleView = setupConsole({ $, request, display, getStatus: () => state });
+const nasView = setupNas({ $, request, display, refresh });
 
 function navigate() {
   const requested = location.hash.slice(1);
@@ -185,7 +187,7 @@ function renderStatus() {
   if (host) idracLink.href = `https://${host.includes(':') ? `[${host}]` : host}/`;
   else idracLink.removeAttribute('href');
   $('connection-title').textContent = state.connection ? 'Connection' : 'Connect your iDRAC';
-  $('connection-intro').textContent = state.connection ? 'Manage the iDRAC credentials Rackview uses.' : 'Enter your iDRAC login to start monitoring the server.';
+  $('connection-intro').textContent = 'Manage the iDRAC and TrueNAS connections Rackview uses.';
   display('app-error', state.sensorError ? `Sensor update failed. ${state.sensorError}` : '', 'error');
 }
 
@@ -211,6 +213,7 @@ function refresh() {
         navigate();
       }
       renderStatus();
+      nasView.update(state);
       renderTelemetry();
       updateControls();
     } catch (error) {
