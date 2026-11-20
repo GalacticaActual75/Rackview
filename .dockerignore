@@ -1,4 +1,5 @@
 *
+!.arcane*.Dockerfile
 !server.mjs
 !ipmi.mjs
 !console.mjs
