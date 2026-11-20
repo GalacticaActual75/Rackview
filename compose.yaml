@@ -1,3 +1,5 @@
+name: rackview
+
 services:
   rackview:
     build:
@@ -8,6 +10,9 @@ services:
             && apt-get install -y --no-install-recommends ipmitool node-ws novnc \
             && rm -rf /var/lib/apt/lists/* \
             && install -d -m 0700 -o node -g node /var/lib/rackview
+        # iDRAC8 can stop sending video when TightPNG is advertised (noVNC #712).
+        RUN sed -i '/^[[:blank:]]*encs\.push(encodings\.encodingTightPNG);[[:blank:]]*$/d' /usr/share/novnc/core/rfb.js \
+            && ! grep -Fq 'encs.push(encodings.encodingTightPNG)' /usr/share/novnc/core/rfb.js
         WORKDIR /app
         COPY server.mjs ipmi.mjs console.mjs ./
         COPY web/ ./web/

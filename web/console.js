@@ -5,6 +5,8 @@ export function setupConsole({ $, request, display, getStatus }) {
   let attempt = 0;
   let failure = '';
   let consoleRevision;
+  let videoStatus = '';
+  let videoTimer;
 
   function update() {
     const state = getStatus();
@@ -15,17 +17,53 @@ export function setupConsole({ $, request, display, getStatus }) {
     $('console-actions').hidden = !viewer;
     $('fullscreen-console').disabled = !connected;
     $('console-cad').disabled = !connected;
-    $('console-status').textContent = connected ? 'Connected' : connecting ? 'Connecting…'
+    const status = connected ? videoStatus : connecting ? 'Connecting…'
       : !state?.connection ? 'Save an iDRAC connection first' : !state.consoleAvailable ? 'Console bridge unavailable' : 'Disconnected';
+    if ($('console-status').textContent !== status) $('console-status').textContent = status;
+  }
+
+  function waitForVideo(session) {
+    const canvas = $('console-screen').querySelector('canvas');
+    const sample = document.createElement('canvas');
+    sample.width = sample.height = 16;
+    const context = sample.getContext('2d', { willReadFrequently: true });
+    const waitingSince = performance.now();
+    videoStatus = 'VNC connected. Waiting for video…';
+    update();
+
+    function checkFrame() {
+      if (viewer !== session) return;
+      if (canvas?.width && canvas.height && context) {
+        context.clearRect(0, 0, 16, 16);
+        context.drawImage(canvas, 0, 0, 16, 16);
+        // A black desktop still has opaque pixels. An untouched framebuffer is transparent.
+        const pixels = context.getImageData(0, 0, 16, 16).data;
+        if (pixels.some((value, index) => index % 4 === 3 && value > 0)) {
+          videoStatus = 'Connected';
+          update();
+          return;
+        }
+      }
+      const slow = performance.now() - waitingSince >= 8000;
+      if (slow) {
+        videoStatus = 'VNC connected. No video received yet.';
+        update();
+      }
+      videoTimer = setTimeout(checkFrame, slow ? 2000 : 400);
+    }
+
+    videoTimer = setTimeout(checkFrame, 400);
   }
 
   function disconnect() {
     if (!viewer && !connecting) return;
     attempt++;
-    viewer?.disconnect();
+    const session = viewer;
     viewer = null;
+    session?.disconnect();
     connected = false;
     connecting = false;
+    clearTimeout(videoTimer);
     $('console-screen').replaceChildren();
     update();
   }
@@ -53,7 +91,9 @@ export function setupConsole({ $, request, display, getStatus }) {
       if (attempt !== currentAttempt) return;
       const url = new URL(`/api/console/ws?ticket=${data.ticket}`, location.href);
       url.protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
-      const session = new RFB($('console-screen'), url.href, { credentials: { password } });
+      const screen = $('console-screen');
+      screen.hidden = false;
+      const session = new RFB(screen, url.href, { credentials: { password } });
       viewer = session;
       $('vnc-password').value = '';
       session.scaleViewport = true;
@@ -62,7 +102,7 @@ export function setupConsole({ $, request, display, getStatus }) {
         if (viewer !== session) return;
         connecting = false;
         connected = true;
-        update();
+        waitForVideo(session);
       });
       session.addEventListener('securityfailure', (event) => {
         failure = event.detail.reason || 'The iDRAC rejected VNC authentication.';
@@ -77,6 +117,7 @@ export function setupConsole({ $, request, display, getStatus }) {
         const wasConnected = connected;
         connecting = false;
         connected = false;
+        clearTimeout(videoTimer);
         $('console-screen').replaceChildren();
         update();
         if (failure || !event.detail.clean) {

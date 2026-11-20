@@ -68,7 +68,14 @@
         <section id="sensors" class="view" aria-labelledby="sensors-title" hidden>
           <div class="page-header"><h1 id="sensors-title">Sensors</h1><p>Browse the hardware readings available over IPMI.</p></div>
           <section class="card telemetry">
-            <div class="card-header sensor-toolbar"><div><h2>Sensor readings</h2><p id="sensor-count">Waiting for sensor readings</p></div><div class="sensor-filters"><input id="sensor-search" type="search" placeholder="Find a sensor" aria-label="Find a sensor"><select id="sensor-kind" aria-label="Sensor type"><option value="all">All types</option><option value="fan">Fans</option><option value="temperature">Temperatures</option><option value="other">Other sensors</option></select></div></div>
+            <div class="card-header sensor-toolbar">
+              <div><h2>Sensor readings</h2><p id="sensor-count">Waiting for sensor readings</p></div>
+              <div class="sensor-filters">
+                <input id="sensor-search" type="search" placeholder="Find a sensor" aria-label="Find a sensor">
+                <select id="sensor-kind" aria-label="Sensor type"><option value="all">All types</option><option value="fan">Fans</option><option value="temperature">Temperatures</option><option value="other">Other sensors</option></select>
+                <label class="sensor-availability"><input id="show-unavailable" type="checkbox"> Show unavailable</label>
+              </div>
+            </div>
             <div class="table-scroll"><table><thead><tr><th scope="col">Sensor</th><th scope="col" class="reading">Reading</th><th scope="col">Status</th></tr></thead><tbody id="sensors-body"></tbody></table></div>
           </section>
         </section>

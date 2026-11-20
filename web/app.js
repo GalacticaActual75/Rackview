@@ -79,13 +79,15 @@ function renderSensors() {
   const rows = state?.sensors ?? [];
   const kind = $('sensor-kind').value;
   const query = $('sensor-search').value.trim().toLowerCase();
-  const filtered = rows.filter((sensor) => (kind === 'all' || sensor.kind === kind) && sensor.name.toLowerCase().includes(query));
+  const showUnavailable = $('show-unavailable').checked;
+  const filtered = rows.filter((sensor) => (showUnavailable || sensor.reading !== null)
+    && (kind === 'all' || sensor.kind === kind) && sensor.name.toLowerCase().includes(query));
   $('sensor-count').textContent = `${filtered.length} of ${rows.length} sensors`;
   renderRows($('sensors-body'), filtered, rows.length ? 'No matching sensors.' : 'No sensor readings yet.');
 }
 
 function renderTelemetry() {
-  const rows = state?.sensors ?? [];
+  const rows = (state?.sensors ?? []).filter((sensor) => sensor.reading !== null);
   const fans = rows.filter((sensor) => sensor.kind === 'fan');
   const temps = rows.filter((sensor) => sensor.kind === 'temperature');
   const measured = fans.filter((sensor) => sensor.value !== null && sensor.unit.toLowerCase() === 'rpm');
@@ -235,6 +237,7 @@ $('refresh').addEventListener('click', refresh);
 window.addEventListener('hashchange', navigate);
 $('sensor-search').addEventListener('input', renderSensors);
 $('sensor-kind').addEventListener('change', renderSensors);
+$('show-unavailable').addEventListener('change', renderSensors);
 $('speed-range').addEventListener('input', () => { $('speed-number').value = $('speed-range').value; });
 $('speed-number').addEventListener('input', () => { if ($('speed-number').validity.valid) $('speed-range').value = $('speed-number').value; });
 $('fan-form').addEventListener('submit', (event) => { event.preventDefault(); changeFanMode('manual'); });
