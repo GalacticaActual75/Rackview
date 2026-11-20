@@ -4,7 +4,7 @@ Rackview is a Docker dashboard for a Dell iDRAC. It reads fan RPM, temperatures,
 
 ## Deploy in Arcane
 
-Create a **Pull** Git Sync in the TrueNAS environment. Select the repository and branch, enter `compose.yaml` as the Compose path, and turn on **Sync Files** so the dashboard source is copied with it. The image build is defined in Compose. Keep deployment settings in Arcane's project environment. [Arcane Git Sync documentation](https://getarcane.app/docs/docker/git-sync)
+Create a **Pull** Git Sync in the TrueNAS environment. Select the repository and branch, enter `compose.yaml` as the Compose path, and turn on **Sync Files** so the `app/` build context is copied with it. The image build is defined in Compose. Keep deployment settings in Arcane's project environment. [Arcane Git Sync documentation](https://getarcane.app/docs/docker/git-sync)
 
 You can set `RACKVIEW_BIND` and `RACKVIEW_PORT` in the project's `.env`. By default Rackview is published on port `8080`. Select **Build & Deploy**, or use `docker compose up -d --build` from the project directory.
 

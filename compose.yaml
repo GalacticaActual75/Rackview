@@ -3,7 +3,7 @@ name: rackview
 services:
   rackview:
     build:
-      context: .
+      context: ./app
       dockerfile_inline: |
         FROM node:24-trixie-slim
         RUN apt-get update \
