@@ -25,7 +25,7 @@ services:
       DASHBOARD_USER: "${DASHBOARD_USER:-}"
       DASHBOARD_PASSWORD: "${DASHBOARD_PASSWORD:-}"
     volumes:
-      - connection:/var/lib/rackview
+      - "${RACKVIEW_DATA_SOURCE:-connection}:/var/lib/rackview"
     read_only: true
     cap_drop: [ALL]
     security_opt:

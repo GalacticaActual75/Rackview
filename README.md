@@ -8,6 +8,8 @@ Create a **Pull** Git Sync in the TrueNAS environment. Select the repository and
 
 You can set `RACKVIEW_BIND` and `RACKVIEW_PORT` in the project's `.env`. By default Rackview is published on port `8080`. Select **Build & Deploy**, or use `docker compose up -d --build` from the project directory.
 
+Rackview uses a Docker-managed volume by default. Set `RACKVIEW_DATA_SOURCE` in the project environment to bind a dedicated host directory for persistent settings. Prepare the directory with write access for the container's runtime UID and GID, which are both `1000`.
+
 Rackview generates a dashboard login on first run. In Arcane, open the `rackview` container's terminal and run `cat /var/lib/rackview/dashboard-login.json` to retrieve it. To choose your own dashboard login, set `DASHBOARD_USER` and `DASHBOARD_PASSWORD` in Arcane's project environment and redeploy. Keep the project on your private network and terminate HTTPS at your reverse proxy if you use one. Forward WebSocket upgrades to the same Rackview port for the virtual console.
 
 ## Connect to iDRAC
