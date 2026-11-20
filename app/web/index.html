@@ -113,6 +113,7 @@
             <div class="card-header"><div><h2>TrueNAS read-only API</h2><p>Use a dedicated Read-Only Administrator account and its user API key.</p></div></div>
             <form id="nas-form" autocomplete="off">
               <p class="hint">In TrueNAS, create a local user with the Read-Only Administrator privilege. Under User API Keys, create a key for that user. <a class="text-link" href="https://www.truenas.com/docs/scale/toptoolbar/managingapikeys/" target="_blank" rel="noopener noreferrer">TrueNAS key setup ↗</a></p>
+              <details class="hint"><summary>Using HTTP for the TrueNAS web UI?</summary><p>You can keep using HTTP in your browser. Rackview needs the TrueNAS HTTPS listener for API keys. In the TrueNAS shell, run <code>midclt call system.general.config | jq .ui_httpsport</code> to find the port. Enter the server address with that HTTPS port below.</p></details>
               <div class="form-grid">
                 <label>TrueNAS HTTPS URL<input id="nas-url" type="url" placeholder="https://nas.example.com" required></label>
                 <label>TrueNAS username<input id="nas-user" required spellcheck="false"></label>
