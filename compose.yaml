@@ -10,7 +10,6 @@ services:
     environment:
       DASHBOARD_USER: "${DASHBOARD_USER:-}"
       DASHBOARD_PASSWORD: "${DASHBOARD_PASSWORD:-}"
-      DATA_DIR: /var/lib/rackview
     volumes:
       - connection:/var/lib/rackview
     read_only: true

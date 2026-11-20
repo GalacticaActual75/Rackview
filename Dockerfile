@@ -9,6 +9,7 @@ WORKDIR /app
 COPY server.mjs ipmi.mjs console.mjs ./
 COPY web/ ./web/
 
+ENV DATA_DIR=/var/lib/rackview
 USER node
 EXPOSE 8080
 CMD ["node", "server.mjs"]
