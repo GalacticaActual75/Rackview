@@ -1,6 +1,8 @@
 services:
   rackview:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile
     image: rackview-ipmi:local
     pull_policy: build
     init: true
