@@ -12,6 +12,40 @@ export function setupNas({ $, request, display, refresh }) {
   let pendingRead;
 
   function render(data) {
+    const system = data.system ?? {};
+    const sample = data.sample ?? {};
+    const rate = value => Number.isFinite(value) ? `${bytes(value)}/s` : '—';
+    const stats = [];
+    if (system.model) stats.push(['Processor', system.model]);
+    if (Number.isFinite(sample.cpu)) stats.push(['CPU usage', `${Number(sample.cpu.toFixed(1))}%`]);
+    if (Number.isFinite(sample.ramTotal)) stats.push(['Total RAM', bytes(sample.ramTotal)]);
+    if (Number.isFinite(sample.ramAvailable)) stats.push(['Available RAM', bytes(sample.ramAvailable)]);
+    if (Number.isFinite(sample.arc)) stats.push(['ZFS ARC cache', bytes(sample.arc)]);
+    if (Number.isFinite(sample.diskRead)) stats.push(['Disk read', rate(sample.diskRead)]);
+    if (Number.isFinite(sample.diskWrite)) stats.push(['Disk write', rate(sample.diskWrite)]);
+    if (Number.isFinite(system.uptime)) {
+      const minutes = Math.floor(system.uptime / 60);
+      stats.push(['Uptime', `${Math.floor(minutes / 1440)}d ${Math.floor(minutes / 60) % 24}h ${minutes % 60}m`]);
+    }
+    if (system.version) stats.push(['TrueNAS version', system.version]);
+    $('nas-stats').replaceChildren(...stats.map(([label, value]) => {
+      const item = document.createElement('div');
+      const term = document.createElement('dt');
+      const description = document.createElement('dd');
+      term.textContent = label;
+      description.textContent = value;
+      item.append(term, description);
+      return item;
+    }));
+    $('nas-sample-note').hidden = !!data.sample;
+    const interfaces = sample.interfaces ?? [];
+    $('nas-network').hidden = !interfaces.length;
+    $('nas-interfaces').replaceChildren(...interfaces.map(nic => {
+      const row = document.createElement('tr');
+      const link = { LINK_STATE_UP: 'Up', LINK_STATE_DOWN: 'Down' }[nic.state] ?? '—';
+      for (const value of [nic.name, link, rate(nic.received), rate(nic.sent)]) row.insertCell().textContent = value;
+      return row;
+    }));
     $('nas-pools').replaceChildren(...data.pools.map(p => {
       const row = document.createElement('tr');
       const scan = p.scan;
@@ -43,7 +77,7 @@ export function setupNas({ $, request, display, refresh }) {
       $('nas-key').required = !state.nas;
       $('nas-key').placeholder = state.nas ? 'Use saved key' : '';
       $('nas-data').hidden = true;
-      $('nas-status').textContent = state.nas ? 'Reading storage pools and alerts…' : 'Connect TrueNAS to view storage pools and alerts.';
+      $('nas-status').textContent = state.nas ? 'Reading system stats, storage pools, and alerts…' : 'Connect TrueNAS to view system stats, storage pools, and alerts.';
     }
     $('nas-test').disabled = $('nas-save').disabled = busy;
     if (!state.nas || pendingRead === revision) return;

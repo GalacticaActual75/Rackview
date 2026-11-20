@@ -23,7 +23,21 @@ export function readNas(config, WebSocket) {
     let verifiedPin;
     let id = 0;
     let pools;
+    let alerts;
+    let system = {};
+    let settled = false;
+    function finish(sample = null) {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      resolve({ pools, alerts, system, sample, updatedAt: new Date().toISOString() });
+      socket.close();
+    }
     function fail(message) {
+      if (settled) return;
+      // Reporting is optional for a connection that can already read storage and alerts.
+      if (alerts) return finish();
+      settled = true;
       clearTimeout(timer);
       reject(new Error(message));
       socket.terminate();
@@ -40,7 +54,28 @@ export function readNas(config, WebSocket) {
     socket.on('message', raw => {
       try {
         const response = JSON.parse(raw);
+        if (id === 5 && response.method === 'collection_update' &&
+            response.params?.collection === 'reporting.realtime' && response.params.event === 'ADDED') {
+          const fields = response.params.fields;
+          if (!fields || typeof fields !== 'object') return finish();
+          const interfaces = Object.entries(fields.interfaces ?? {}).map(([name, nic]) =>
+            ({ name, received: nic.received_bytes_rate, sent: nic.sent_bytes_rate, state: nic.link_state }));
+          return finish({ cpu: fields.cpu?.cpu?.usage, ramTotal: fields.memory?.physical_memory_total,
+            ramAvailable: fields.memory?.physical_memory_available, arc: fields.memory?.arc_size,
+            diskRead: fields.disks?.read_bytes, diskWrite: fields.disks?.write_bytes, interfaces });
+        }
         if (response.id !== id) return;
+        if (id === 4) {
+          if (!response.error && response.result) {
+            const info = response.result;
+            system = { model: info.model, uptime: info.uptime_seconds, version: info.version };
+          }
+          return call('core.subscribe', ['reporting.realtime']);
+        }
+        if (id === 5) {
+          if (response.error) finish();
+          return; // The subscription acknowledgement and the first sample are separate messages.
+        }
         if (response.error) return fail(['', 'TrueNAS rejected the login request.', 'TrueNAS denied the pool query.', 'TrueNAS denied the alert query.'][id]);
         const result = response.result;
         if (id === 1) {
@@ -66,14 +101,16 @@ export function readNas(config, WebSocket) {
             scan: p.scan?.function ? { type: p.scan.function, state: p.scan.state, percent: p.scan.percentage } : null }));
           call('alert.list');
         } else {
-          const alerts = result.filter(a => !a.dismissed).map(a => ({ level: a.level, message: a.formatted || a.text || a.klass }));
-          clearTimeout(timer);
-          resolve({ pools, alerts, updatedAt: new Date().toISOString() });
-          socket.close();
+          alerts = result.filter(a => !a.dismissed).map(a => ({ level: a.level, message: a.formatted || a.text || a.klass }));
+          call('system.info');
         }
       } catch { fail('TrueNAS returned an unexpected response. Check API compatibility.'); }
     });
     socket.on('error', () => fail('Could not establish a verified TLS connection to TrueNAS. Check the HTTPS port, certificate, and network.'));
-    socket.once('close', () => { clearTimeout(timer); reject(new Error('TrueNAS closed the API connection.')); });
+    socket.once('close', () => {
+      clearTimeout(timer);
+      if (alerts && !settled) finish();
+      else reject(new Error('TrueNAS closed the API connection.'));
+    });
   });
 }

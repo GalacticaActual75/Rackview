@@ -67,8 +67,12 @@
             </section>
           </div>
           <section class="card nas-panel">
-            <div class="card-header"><div><h2>TrueNAS storage</h2><p id="nas-status">Connect TrueNAS to view storage pools and alerts.</p></div><a href="#connection" class="text-link">Connection settings</a></div>
+            <div class="card-header"><div><h2>TrueNAS system</h2><p id="nas-status">Connect TrueNAS to view system stats, storage pools, and alerts.</p></div><a href="#connection" class="text-link">Connection settings</a></div>
             <div id="nas-data" hidden>
+              <dl class="nas-stats" id="nas-stats"></dl>
+              <p class="nas-note" id="nas-sample-note" hidden>Performance counters are unavailable for this sample.</p>
+              <details id="nas-network" class="sensor-section" hidden><summary><strong>Network traffic by interface</strong></summary><div class="table-scroll"><table aria-label="TrueNAS network traffic"><thead><tr><th>Interface</th><th>Link</th><th>Receive</th><th>Send</th></tr></thead><tbody id="nas-interfaces"></tbody></table></div></details>
+              <div class="card-header"><h2>Storage pools</h2></div>
               <div class="table-scroll"><table aria-label="TrueNAS pools"><thead><tr><th>Pool</th><th>Health</th><th>Allocated</th><th>Free</th><th>Scrub / resilver</th></tr></thead><tbody id="nas-pools"></tbody></table></div>
               <div class="card-header"><div><h2>Active alerts</h2><ul id="nas-alerts"></ul></div></div>
             </div>

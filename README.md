@@ -44,7 +44,7 @@ Disable the existing TrueNAS fan-control cron job when you hand fan control over
 
 ## TrueNAS read-only monitoring
 
-Rackview supports the TrueNAS 25.10 JSON-RPC WebSocket API. On **Overview**, the TrueNAS storage panel shows pool health, allocated and free capacity, scrub or resilver progress, and active alerts.
+Rackview supports the TrueNAS 25.10 JSON-RPC WebSocket API. **Overview → TrueNAS system** shows CPU usage, total and available RAM, ZFS ARC size, disk read/write throughput, per-interface network traffic, and uptime. Rackview samples the reporting service when refreshing its 30-second snapshot. Pool health, allocated and free capacity, scrub or resilver progress, and active alerts remain available when reporting is unavailable.
 
 1. In TrueNAS, create a dedicated local user with the **Read-Only Administrator** privilege and web shell disabled. The key inherits that user's permissions. [TrueNAS roles](https://api.truenas.com/v25.10/rbac.html)
 2. In **User API Keys**, add a key for that user and copy it. [TrueNAS API key guide](https://www.truenas.com/docs/scale/toptoolbar/managingapikeys/)
