@@ -28,13 +28,15 @@ Keep `.env` and the files in the data directory on the deployment host. The GitH
 
 ### 3. Build, deploy, and sign in
 
-Select **Build & Deploy**, then open Rackview using the Docker host address and the published port. On upgrades from versions that generated credentials, each blank or omitted dashboard login field now defaults to `admin`. To keep a previous login, set both fields in the project's `.env` before redeploying.
+Select **Build & Deploy**, open Rackview using the Docker host address and published port, and enter your dashboard login on the Rackview sign-in page. The browser tab stays signed in across refreshes for up to 12 hours. **Sign out** ends the session. On upgrades from versions that generated credentials, each blank or omitted dashboard login field now defaults to `admin`. To keep a previous login, set both fields in the project's `.env` before redeploying.
 
 For a standalone Docker installation, copy `.env.example` to `.env`, set the same fields, and run `docker compose up -d --build` from the repository directory. If you use an HTTPS reverse proxy, forward WebSocket upgrades to the Rackview port for the virtual console.
 
 ## Connect to iDRAC
 
-The first visit after signing in opens **Connect your iDRAC**. Enter the iDRAC IP, username, and password. **Test connection** runs `ipmitool mc info` and displays the firmware and protocol versions. **Save connection** stores the credentials in the persistent data directory. An existing password can be reused for the same IP and username by leaving the field blank.
+On a new installation, **Set up Rackview** asks what you want to see. Choose hardware readings for iDRAC, system and storage data for TrueNAS, or the remote screen for VNC. The guide opens the connection forms in order and adds the required iDRAC step when you select VNC. Each step can be skipped. Open **Connection → Open setup guide** to run it again.
+
+For hardware readings, enter the iDRAC IP, username, and password. **Test connection** runs `ipmitool mc info` and displays the firmware and protocol versions. **Save connection** stores the credentials in the persistent data directory. An existing password can be reused for the same IP and username by leaving the field blank.
 
 Unavailable readings are hidden by default. Select **Sensors → Show unavailable** to include them in the full sensor list.
 
@@ -54,7 +56,7 @@ Rackview supports the TrueNAS 25.10 JSON-RPC WebSocket API. **Overview** shows C
 
 ## Embedded Virtual Console
 
-Rackview remembers successful console connections for each iDRAC in its persistent data directory. Reopen **Virtual Console** to reuse the most recent port, TLS setting, and certificate fingerprint, or choose another profile under **Saved connections**. Select **Remember VNC password on this Rackview server** to store the VNC password in the same private data directory. **Forget saved connection** removes the selected profile and its saved password.
+Rackview remembers successful console connections for each iDRAC in its persistent data directory. Select **Remember VNC password on this Rackview server** to start the console automatically the next time you open **Virtual Console**. Opening the tab uses the selected profile with a saved password, or the most recent profile with one. If only the port, TLS setting, and fingerprint were saved, enter the VNC password and select **Connect to console**. **Disconnect** ends the session. **Forget saved connection** removes the selected profile and its saved password.
 
 Open **Virtual Console** and select **VNC setup** for Dell's first-time setup paths and version-specific guides. On iDRAC8, the VNC feature requires an Enterprise license. Rackview uses the saved iDRAC IP and the VNC port and password you enter. The usual port is TCP `5901`, and the VNC password is separate from the iDRAC login password. Dell allows a single active VNC session. [Dell iDRAC8 VNC guide](https://www.dell.com/support/manuals/en-us/idrac7-8-lifecycle-controller-v2.30.30.30/idrac8_2.30.30.30_ug/using-vnc-client-to-manage-remote-server?guid=guid-bf36a9fe-9ec5-4f2b-91cd-3a428bb8eb26&lang=en-us)
 

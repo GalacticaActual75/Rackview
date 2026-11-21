@@ -1,5 +1,6 @@
 import { setupConsole } from './console.js';
 import { setupNas } from './truenas.js';
+import { setupGuide } from './setup.js';
 
 const $ = (id) => document.getElementById(id);
 let state;
@@ -8,6 +9,7 @@ let polling;
 let timer;
 let pending = false;
 let connectionPending = false;
+let session = sessionStorage.getItem('rackview.session');
 const number = new Intl.NumberFormat(undefined, { maximumFractionDigits: 1 });
 
 function display(id, message, kind = '') {
@@ -19,11 +21,20 @@ function display(id, message, kind = '') {
 }
 
 async function request(path, body) {
-  const response = await fetch(path, body === undefined ? {} : {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': state?.csrf ?? '' },
-    body: JSON.stringify(body),
+  const headers = {};
+  if (session) headers.Authorization = `Bearer ${session}`;
+  if (body !== undefined) {
+    headers['Content-Type'] = 'application/json';
+    headers['X-CSRF-Token'] = state?.csrf ?? '';
+  }
+  const response = await fetch(path, {
+    method: body === undefined ? 'GET' : 'POST', credentials: 'omit', headers, body: JSON.stringify(body),
   });
+  if (response.status === 401 && path !== '/api/login') {
+    sessionStorage.removeItem('rackview.session');
+    location.reload();
+    throw new Error('Sign in again.');
+  }
   const data = await response.json();
   if (!response.ok) throw new Error(data.error ?? `Request failed (${response.status}).`);
   return data;
@@ -31,6 +42,7 @@ async function request(path, body) {
 
 const consoleView = setupConsole({ $, request, display, getStatus: () => state });
 const nasView = setupNas({ $, request, display, refresh });
+const guide = setupGuide({ $, request, display, getState: () => state, disconnect: () => consoleView.disconnect() });
 
 function updateFingerprintHelp(isNas) {
   const command = $(isNas ? 'nas-pin-command' : 'vnc-pin-command');
@@ -58,14 +70,16 @@ for (const [id, isNas] of [['nas-pin-help', true], ['vnc-fingerprint-help', fals
 
 function navigate() {
   const requested = location.hash.slice(1);
-  const defaultPage = state && !state.connection ? 'connection' : 'overview';
-  const page = ['overview', 'sensors', 'connection', 'console'].includes(requested) ? requested : defaultPage;
+  const page = ['overview', 'sensors', 'connection', 'console', 'setup'].includes(requested) ? requested : 'overview';
+  if (page === 'setup') guide.render();
+  else guide.restore();
   for (const section of document.querySelectorAll('.view')) section.hidden = section.id !== page;
   for (const link of document.querySelectorAll('nav [data-page]')) {
     if (link.dataset.page === page) link.setAttribute('aria-current', 'page');
     else link.removeAttribute('aria-current');
   }
-  if (page !== 'console') consoleView.disconnect();
+  if (page === 'console') consoleView.open();
+  else consoleView.disconnect();
   if (page === 'connection' && state && formRevision !== state.revision && !connectionPending) resetConnectionForm();
 }
 
@@ -234,6 +248,7 @@ function refresh() {
       if (firstLoad) {
         resetConnectionForm();
         if (state.lastCommand?.mode === 'manual') $('speed-range').value = $('speed-number').value = state.lastCommand.percent;
+        if (state.setupRequired && (!location.hash || location.hash === '#overview')) history.replaceState(null, '', '#setup');
         navigate();
       }
       renderStatus();
@@ -306,7 +321,7 @@ async function configureConnection(test) {
       if (polling) await polling;
       await refresh();
       resetConnectionForm();
-      if (firstConnection && state.connection) location.hash = 'overview';
+      if (firstConnection && state.connection && location.hash !== '#setup') location.hash = 'overview';
     }
   } catch (error) {
     display('connection-result', error.message, 'error');
@@ -331,7 +346,34 @@ $('connection-form').addEventListener('input', () => {
   $('test-details').hidden = true;
   display('connection-result', '');
 });
-navigate();
-renderTelemetry();
-updateControls();
-refresh();
+function openDashboard() {
+  $('sign-in').hidden = true;
+  $('dashboard').hidden = false;
+  navigate();
+  renderTelemetry();
+  updateControls();
+  refresh();
+}
+
+$('login-form').addEventListener('submit', async event => {
+  event.preventDefault();
+  $('login-submit').disabled = true;
+  display('login-error', '');
+  try {
+    const data = await request('/api/login', { user: $('login-user').value, password: $('login-password').value });
+    sessionStorage.setItem('rackview.session', data.token);
+    session = data.token;
+    $('login-form').reset();
+    openDashboard();
+  } catch (error) { display('login-error', error.message, 'error'); }
+  finally { $('login-submit').disabled = false; }
+});
+$('logout').addEventListener('click', async () => {
+  try {
+    await request('/api/logout', {});
+    sessionStorage.removeItem('rackview.session');
+    location.reload();
+  } catch (error) { display('app-error', error.message, 'error'); }
+});
+if (session) openDashboard();
+else { $('sign-in').hidden = false; $('login-user').focus(); }

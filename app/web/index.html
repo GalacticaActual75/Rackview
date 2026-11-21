@@ -9,7 +9,21 @@
   <script type="module" src="/app.js"></script>
 </head>
 <body>
-  <div class="shell">
+  <main id="sign-in" class="login-page" hidden>
+    <section class="card login-card">
+      <div class="brand"><span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span>Rackview</div>
+      <h1>Sign in</h1>
+      <form id="login-form">
+        <div class="form-grid">
+          <label class="wide">Dashboard username<input id="login-user" name="username" autocomplete="username" required></label>
+          <label class="wide">Dashboard password<input id="login-password" name="password" type="password" autocomplete="current-password" required></label>
+        </div>
+        <p id="login-error" class="result error" role="alert" hidden></p>
+        <button class="button primary" type="submit" id="login-submit">Sign in</button>
+      </form>
+    </section>
+  </main>
+  <div id="dashboard" class="shell" hidden>
     <aside class="sidebar">
       <a class="brand" href="#overview">
         <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span>
@@ -31,9 +45,27 @@
       <header class="topbar">
         <div class="connection-status" role="status"><span class="dot" id="status-dot"></span><span id="status-text">Connecting to dashboard</span></div>
         <button class="button quiet" type="button" id="refresh"><span aria-hidden="true">↻</span> Refresh</button>
+        <button class="button quiet" type="button" id="logout">Sign out</button>
       </header>
       <div class="content">
         <div id="app-error" class="notice error" role="alert" hidden></div>
+        <section id="setup" class="view" aria-labelledby="setup-title" hidden>
+          <div class="page-header"><h1 id="setup-title">Set up Rackview</h1><p id="setup-progress" role="status"></p></div>
+          <div class="card settings setup-choices" id="setup-choices">
+            <fieldset><legend>What do you want to see?</legend>
+              <label><input type="checkbox" id="want-idrac"> Fan speeds, temperatures and hardware sensors</label>
+              <label><input type="checkbox" id="want-nas"> CPU, memory, storage pools and TrueNAS alerts</label>
+              <label><input type="checkbox" id="want-console"> The server’s screen, keyboard and mouse</label>
+            </fieldset>
+          </div>
+          <div id="setup-panel"></div>
+          <p class="result error" id="setup-error" role="alert" hidden></p>
+          <div class="settings-buttons">
+            <button class="button secondary" id="setup-back" type="button" hidden>Back</button>
+            <button class="button primary" id="setup-next" type="button">Continue</button>
+            <button class="button quiet" id="setup-skip" type="button">Set up later</button>
+          </div>
+        </section>
         <section id="overview" class="view" aria-labelledby="overview-title">
           <div class="page-header overview-heading">
             <h1 id="overview-title">Server overview</h1>
@@ -112,7 +144,8 @@
         </section>
         <section id="connection" class="view" aria-labelledby="connection-title" hidden>
           <div class="page-header"><h1 id="connection-title">Connect your iDRAC</h1><p id="connection-intro">Enter your iDRAC login to start monitoring the server.</p></div>
-          <section class="card settings">
+          <button class="button secondary setup-launch" id="setup-launch" type="button">Open setup guide</button>
+          <section class="card settings" id="idrac-settings">
             <div class="card-header"><div><h2>IPMI over LAN</h2><p>Test the credentials from inside the container before saving.</p></div><button type="button" class="help-trigger" popovertarget="deployment-help" aria-label="Rackview login, storage and Git sync" title="Rackview login, storage and Git sync">ⓘ</button></div>
             <div popover class="field-tip" id="deployment-help"><strong>Rackview login, storage and Git sync</strong><p>In Arcane, open this project’s <strong>Configuration → .env</strong>. <code>DASHBOARD_USER</code> and <code>DASHBOARD_PASSWORD</code> set the dashboard login. <code>RACKVIEW_DATA_SOURCE</code> selects the persistent mount. Arcane uses its Git credential to sync the repository. <a href="https://github.com/GalacticaActual75/Rackview#readme" target="_blank" rel="noopener noreferrer">Arcane setup and deploy keys</a></p></div>
             <form id="connection-form" autocomplete="off">
@@ -130,7 +163,7 @@
               <dl class="test-details" id="test-details" hidden></dl>
             </form>
           </section>
-          <section class="card settings nas-panel">
+          <section class="card settings nas-panel" id="nas-settings">
             <div class="card-header"><div><h2>TrueNAS read-only API</h2><p>Use a dedicated Read-Only Administrator account and its user API key.</p></div></div>
             <form id="nas-form" autocomplete="off">
               <div class="form-grid">
@@ -162,7 +195,7 @@
         </section>
         <section id="console" class="view" aria-labelledby="console-title" hidden>
           <div class="page-header"><h1 id="console-title">Virtual Console</h1><p>Use the server’s screen, keyboard, and mouse from Rackview.</p></div>
-          <section class="card console-card">
+          <section class="card console-card" id="console-settings">
             <div class="card-header">
               <div><div class="field-title"><h2>Remote screen</h2><button type="button" class="help-trigger" popovertarget="vnc-video-help" aria-label="Why the console can be blank" title="Why the console can be blank">ⓘ</button></div><p id="console-status" role="status">Disconnected</p></div>
               <div popover class="field-tip" id="vnc-video-help"><strong>Waiting for console video</strong><p>“Waiting for video” means VNC accepted the connection and Rackview is waiting for the first image. If it stays blank, disconnect Rackview and check the screen in the native iDRAC console. Close the other viewer before reconnecting.</p></div>

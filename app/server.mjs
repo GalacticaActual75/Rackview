@@ -12,6 +12,7 @@ import { nasConnection, readNas } from './truenas.mjs';
 const SENSOR_INTERVAL = 10_000;
 const assets = new Map([
   ['/', ['index.html', 'text/html']],
+  ['/setup.js', ['setup.js', 'text/javascript']],
   ['/app.js', ['app.js', 'text/javascript']],
   ['/console.js', ['console.js', 'text/javascript']],
   ['/truenas.js', ['truenas.js', 'text/javascript']],
@@ -124,6 +125,12 @@ export async function createDashboard({
   }
 
   const credentials = digest(`${user}:${password}`);
+  const sessions = new Map();
+  const setupPath = join(dataDir, 'setup-complete.json');
+  let setupComplete = await readFile(setupPath, 'utf8').then(() => true).catch(error => {
+    if (error.code !== 'ENOENT') throw error;
+    return false;
+  });
   const nasPath = join(dataDir, 'truenas.json');
   let nas = null;
   try { nas = nasConnection(JSON.parse(await readFile(nasPath, 'utf8'))); }
@@ -229,12 +236,6 @@ export async function createDashboard({
     const { method, url } = request;
     if (method === 'GET' && url === '/healthz') return json(response, 200, { ok: true });
 
-    const basic = /^Basic (\S+)$/i.exec(request.headers.authorization ?? '');
-    if (!basic || !timingSafeEqual(credentials, digest(Buffer.from(basic[1], 'base64')))) {
-      response.setHeader('WWW-Authenticate', 'Basic realm="Rackview", charset="UTF-8"');
-      return json(response, 401, { error: 'Sign in to Rackview.' });
-    }
-
     try {
       if (method === 'GET' && assets.has(url.split('?')[0])) {
         const [file, type] = assets.get(url.split('?')[0]);
@@ -250,11 +251,30 @@ export async function createDashboard({
         response.writeHead(200, { 'Content-Type': 'text/javascript; charset=utf-8' });
         return response.end(content);
       }
+      if (method === 'POST' && url === '/api/login') {
+        if (request.headers['sec-fetch-site'] === 'cross-site') throw new HttpError(403, 'Open Rackview to sign in.');
+        const input = await readJson(request);
+        if (typeof input?.user !== 'string' || input.user.includes(':') || typeof input.password !== 'string' ||
+          !timingSafeEqual(credentials, digest(`${input.user}:${input.password}`))) {
+          throw new HttpError(401, 'Incorrect Rackview username or password.');
+        }
+        for (const [key, expiry] of sessions) if (expiry <= Date.now()) sessions.delete(key);
+        if (sessions.size >= 128) sessions.delete(sessions.keys().next().value);
+        const token = randomBytes(32).toString('base64url');
+        sessions.set(token, Date.now() + 12 * 60 * 60 * 1000);
+        return json(response, 200, { token });
+      }
+      const auth = request.headers.authorization ?? '';
+      const token = /^Bearer ([\w-]{43})$/.exec(auth)?.[1];
+      const basic = /^Basic (\S+)$/i.exec(auth);
+      if (!(sessions.get(token) > Date.now()) && !(basic && timingSafeEqual(credentials, digest(Buffer.from(basic[1], 'base64'))))) {
+        throw new HttpError(401, 'Sign in to Rackview.');
+      }
       if (method === 'GET' && url === '/api/status') {
         await refresh();
         return json(response, 200, {
           connection: connection ? { host: connection.host, user: connection.user } : null,
-          consoleProfiles: visibleProfiles(),
+          consoleProfiles: visibleProfiles(), setupRequired: !setupComplete && !connection && !nas,
           nas: nas ? { url: nas.url, user: nas.user, fingerprint: nas.fingerprint } : null, nasRevision,
           csrf, revision, sensors, updatedAt, sensorError, lastCommand, consoleAvailable: !!issueConsoleTicket, pollMs: SENSOR_INTERVAL,
         });
@@ -272,6 +292,15 @@ export async function createDashboard({
           throw new HttpError(403, 'Refresh Rackview and try again.');
         }
         const input = await readJson(request);
+        if (url === '/api/logout') {
+          sessions.delete(token);
+          return json(response, 200, { ok: true });
+        }
+        if (url === '/api/setup/complete') {
+          await saveJson(setupPath, true);
+          setupComplete = true;
+          return json(response, 200, { ok: true });
+        }
         if (url === '/api/truenas/test' || url === '/api/truenas/save') {
           if (nasSaving || input?.revision !== nasRevision) throw new HttpError(409, 'TrueNAS settings changed or are being saved. Refresh and try again.');
           let config;

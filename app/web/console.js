@@ -121,8 +121,7 @@ export function setupConsole({ $, request, display, getStatus }) {
     update();
   }
 
-  $('console-form').addEventListener('submit', async (event) => {
-    event.preventDefault();
+  async function connect() {
     if (connecting || viewer) return;
     const currentAttempt = ++attempt;
     const enteredPassword = $('vnc-password').value;
@@ -191,7 +190,18 @@ export function setupConsole({ $, request, display, getStatus }) {
       disconnect();
       display('console-result', error.message, 'error');
     }
-  });
+  }
+  function open() {
+    update();
+    if (viewer || connecting || $('start-console').disabled) return;
+    const selected = selectedProfile();
+    const saved = selected?.hasPassword ? selected : profiles.find(profile => profile.hasPassword);
+    if (!saved) return;
+    $('vnc-profiles').value = saved.id;
+    loadProfile();
+    connect();
+  }
+  $('console-form').addEventListener('submit', event => { event.preventDefault(); connect(); });
   $('vnc-profiles').addEventListener('change', loadProfile);
   for (const id of ['vnc-port', 'vnc-tls', 'vnc-fingerprint']) $(id).addEventListener('input', updateFields);
   $('forget-console').addEventListener('click', async () => {
@@ -224,5 +234,5 @@ export function setupConsole({ $, request, display, getStatus }) {
       $('vnc-help').querySelector('summary').focus();
     }
   });
-  return { update, disconnect };
+  return { update, disconnect, open };
 }
