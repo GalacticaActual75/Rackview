@@ -14,6 +14,14 @@ Rackview brings Dell iDRAC cooling, hardware sensors, a VNC console, and read-on
 
 **Storage and updates.** Rackview writes its iDRAC login, TrueNAS API key, and optionally its VNC password under `/var/lib/rackview`. Protect the volume and its backups as credentials. To use a TrueNAS dataset, replace the `rackview-data` source in the service volume mapping with its absolute host path and give UID/GID `1000:1000` access. For example, the dataset `tank/apps/rackview` uses the mapping `"/mnt/tank/apps/rackview:/var/lib/rackview"`. For Arcane Git Sync, set only the host path in `RACKVIEW_DATA_SOURCE`. To update, pull the latest image and recreate the service using the same project and volume. To pin a build, replace `:latest` with `:sha-<full-git-commit>`. If migrating an existing installation, point the new service at its existing data mount.
 
+## Screenshots
+
+These screenshots show Rackview with fictional hosts, apps and sensor readings.
+
+| Server overview | Installed apps |
+| --- | --- |
+| [![Rackview overview with hardware cooling, verified fan duty and TrueNAS storage](docs/screenshots/overview.jpg)](docs/screenshots/overview.jpg) | [![Rackview Apps with crashed apps first and CPU and memory usage as shares of host capacity](docs/screenshots/apps.jpg)](docs/screenshots/apps.jpg) |
+
 ## Build from source with Arcane Git Sync
 
 ### 1. Connect the repository
