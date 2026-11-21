@@ -86,6 +86,7 @@ function navigate() {
   }
   if (page === 'console') consoleView.open();
   else consoleView.disconnect();
+  if (page === 'overview' && !dutyResult) void checkDuty();
   if (page === 'connection' && state && formRevision !== state.revision && !connectionPending) resetConnectionForm();
 }
 
@@ -313,11 +314,19 @@ $('find-ssh-key').addEventListener('click', async () => {
   } catch (error) { display('ssh-key-result', error.message, 'error'); }
   finally { $('find-ssh-key').disabled = false; }
 });
-$('trust-ssh-key').addEventListener('click', () => {
-  if (discoveredKey?.revision !== state?.revision || $('host').value !== state?.connection?.host) return;
-  $('idrac-ssh-key').value = discoveredKey.publicKey;
-  clearDiscoveredKey();
-  display('ssh-key-result', 'Select Save connection to pin this key.');
+$('trust-ssh-key').addEventListener('click', async () => {
+  if (!discoveredKey || discoveredKey.revision !== state?.revision || $('host').value !== state?.connection?.host) return;
+  $('trust-ssh-key').disabled = true;
+  try {
+    await request('/api/connection/ssh-host-key/save', { revision: discoveredKey.revision, publicKey: discoveredKey.publicKey });
+    if (polling) await polling;
+    await refresh();
+    $('idrac-ssh-key').value = state.connection?.sshHostKey ?? '';
+    formRevision = state.revision;
+    clearDiscoveredKey();
+    display('ssh-key-result', 'Host key saved. Open Overview to see the reported fan duty.');
+  } catch (error) { display('ssh-key-result', error.message, 'error'); }
+  finally { $('trust-ssh-key').disabled = false; }
 });
 
 function refresh() {
@@ -349,6 +358,7 @@ function refresh() {
       renderTelemetry();
       renderDuty();
       updateControls();
+      if (!$('overview').hidden && !dutyResult) void checkDuty();
     } catch (error) {
       if (!state) {
         $('target-address').textContent = 'Connection unavailable';

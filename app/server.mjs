@@ -28,6 +28,13 @@ class HttpError extends Error {
   }
 }
 
+function validateSshHostKey(value) {
+  if (typeof value !== 'string' || (value && !/^(ssh-ed25519|ssh-rsa|ecdsa-sha2-nistp(?:256|384|521)) [A-Za-z0-9+/]{16,2048}={0,2}$/.test(value))) {
+    throw new HttpError(400, 'Enter the SSH host key type and its base64 public key.');
+  }
+  return value;
+}
+
 function validateConnection(input, saved) {
   const host = typeof input?.host === 'string' ? input.host.trim() : '';
   const user = typeof input?.user === 'string' ? input.user.trim() : '';
@@ -40,10 +47,8 @@ function validateConnection(input, saved) {
   if (typeof password !== 'string' || !password || password.includes('\0')) {
     throw new HttpError(400, 'Enter the iDRAC password.');
   }
-  const sshHostKey = (input.sshHostKey ?? (host === saved?.host ? saved.sshHostKey : '') ?? '').trim();
-  if (sshHostKey && !/^(ssh-ed25519|ssh-rsa|ecdsa-sha2-nistp(?:256|384|521)) [A-Za-z0-9+/]{16,2048}={0,2}$/.test(sshHostKey)) {
-    throw new HttpError(400, 'Enter the SSH host key type and its base64 public key.');
-  }
+  const key = input.sshHostKey ?? (host === saved?.host ? saved.sshHostKey : '') ?? '';
+  const sshHostKey = validateSshHostKey(typeof key === 'string' ? key.trim() : key);
   return { host, user, password, sshHostKey };
 }
 
@@ -393,6 +398,15 @@ export async function createDashboard({
             catch (error) { throw new HttpError(502, error.message); }
           });
           return json(response, 200, key);
+        }
+        if (url === '/api/connection/ssh-host-key/save') {
+          await exclusive(async () => {
+            if (!connection || input?.revision !== revision) throw new HttpError(409, 'Refresh the iDRAC connection first.');
+            const sshHostKey = validateSshHostKey(input.publicKey);
+            if (!sshHostKey) throw new HttpError(400, 'Select an SSH host key.');
+            await save({ ...connection, sshHostKey });
+          });
+          return json(response, 200, { ok: true });
         }
         if (['/api/console/ticket', '/api/console/profiles/save', '/api/console/profiles/forget'].includes(url)) {
           if (!connection || input?.revision !== revision) throw new HttpError(409, 'Save or refresh the iDRAC connection first.');

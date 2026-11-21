@@ -179,9 +179,9 @@
                   <p class="hint">In iDRAC8, open <strong>Overview → iDRAC Settings → Network → Services</strong> and enable SSH on port 22. Save the iDRAC address in Rackview, then find its host key.</p>
                   <button id="find-ssh-key" type="button" class="button quiet">Find SSH host key</button>
                   <p class="hint" id="ssh-key-result" role="status" hidden></p>
-                  <button id="trust-ssh-key" type="button" class="button quiet" hidden>Use this host key</button>
+                  <button id="trust-ssh-key" type="button" class="button quiet" hidden>Trust and save host key</button>
                   <label>Trusted SSH host public key<input id="idrac-ssh-key" spellcheck="false" placeholder="Key type and base64 public key"></label>
-                  <p class="hint">Save the connection to pin the key. Then select <strong>Check fan duty</strong> on Overview.</p>
+                  <p class="hint">Overview checks the reported duty when it opens. Select <strong>Check fan duty</strong> to take another reading.</p>
                 </details>
               </div>
               <div class="settings-buttons"><button id="save-connection" class="button primary" type="submit" disabled>Save connection</button><button id="test-connection" class="button secondary" type="button" disabled>Test connection</button></div>

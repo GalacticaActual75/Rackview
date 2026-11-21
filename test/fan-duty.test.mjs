@@ -43,7 +43,11 @@ test('fan history survives restarts, handles failures and belongs to the configu
   async function restart() {
     if (server?.listening) await close();
     const count = writes.length;
-    server = await createDashboard({ dataDir, user: 'example', password: 'test-only', run });
+    const readDuty = async connection => {
+      assert.equal(connection.password, config.password);
+      return [{ name: 'Fan1', percent: 80 }];
+    };
+    server = await createDashboard({ dataDir, user: 'example', password: 'test-only', run, readDuty });
     await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
     base = 'http://127.0.0.1:' + server.address().port;
     await status();
@@ -62,6 +66,13 @@ test('fan history survives restarts, handles failures and belongs to the configu
   assert.equal((await post('/api/connection', config)).status, 200);
   await restart();
   assert.deepEqual(snapshot.lastCommand, accepted);
+  const publicKey = 'ssh-ed25519 ' + Buffer.alloc(32, 1).toString('base64');
+  assert.equal((await post('/api/connection/ssh-host-key/save', { publicKey })).status, 200);
+  await restart();
+  assert.deepEqual(snapshot.lastCommand, accepted);
+  const duty = await post('/api/fans/readback', {});
+  assert.equal(duty.status, 200);
+  assert.equal((await duty.json()).fans[0].percent, 80);
   failManual = true;
   assert.equal((await post('/api/fans', { mode: 'manual', percent: 75 })).status, 502);
   await restart();
