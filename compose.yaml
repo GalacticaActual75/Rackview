@@ -1,7 +1,9 @@
 name: rackview
 
 # Set these in the project's local .env before the first launch.
-# RACKVIEW_DATA_SOURCE=   # Prepared absolute host path, or blank for a Docker volume
+# Example for a TrueNAS pool named tank and a dataset named apps/rackview:
+# RACKVIEW_DATA_SOURCE=/mnt/tank/apps/rackview
+# Leave the setting blank to use a Docker volume.
 # DASHBOARD_USER=        # Defaults to admin
 # DASHBOARD_PASSWORD=    # Defaults to admin
 

@@ -9,6 +9,10 @@ services:
       DASHBOARD_PASSWORD: 'admin' # Set your own password before deploying.
     volumes:
       - rackview-data:/var/lib/rackview
+      # To use a TrueNAS dataset, replace the line above with the example below.
+      # Change tank to your pool and apps/rackview to your dataset path.
+      # Create the dataset first and grant UID 1000 read, write and traverse access.
+      # - "/mnt/tank/apps/rackview:/var/lib/rackview"
     restart: unless-stopped
     init: true
     read_only: true
