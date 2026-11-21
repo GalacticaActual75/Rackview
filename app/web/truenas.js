@@ -1,4 +1,4 @@
-function bytes(value) {
+export function bytes(value) {
   if (!Number.isFinite(value)) return '—';
   const units = ['B', 'KiB', 'MiB', 'GiB', 'TiB', 'PiB'];
   let i = 0;
@@ -38,6 +38,9 @@ export function setupNas({ $, request, display, refresh }) {
       $('nas-memory').textContent = amount;
       $('nas-memory-unit').textContent = unit;
       $('nas-memory-total').textContent = Number.isFinite(sample.ramTotal) ? `of ${bytes(sample.ramTotal)} installed` : '';
+      const meter = $('nas-memory-meter');
+      meter.hidden = !(sample.ramTotal > 0);
+      if (!meter.hidden) meter.value = sample.ramAvailable / sample.ramTotal * 100;
     } else if (Number.isFinite(sample.ramTotal)) stats.push(['Total RAM', bytes(sample.ramTotal)]);
     if (Number.isFinite(sample.arc)) stats.push(['ZFS ARC cache', bytes(sample.arc)]);
     if (Number.isFinite(sample.diskRead)) stats.push(['Disk read', rate(sample.diskRead)]);

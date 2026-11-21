@@ -1,5 +1,6 @@
 import { setupConsole } from './console.js';
 import { setupNas } from './truenas.js';
+import { setupApps } from './apps.js';
 import { setupGuide } from './setup.js';
 
 const $ = (id) => document.getElementById(id);
@@ -42,6 +43,7 @@ async function request(path, body) {
 
 const consoleView = setupConsole({ $, request, display, getStatus: () => state });
 const nasView = setupNas({ $, request, display, refresh });
+const appsView = setupApps({ $, request });
 const guide = setupGuide({ $, request, display, getState: () => state, disconnect: () => consoleView.disconnect() });
 
 function updateFingerprintHelp(isNas) {
@@ -70,7 +72,7 @@ for (const [id, isNas] of [['nas-pin-help', true], ['vnc-fingerprint-help', fals
 
 function navigate() {
   const requested = location.hash.slice(1);
-  const page = ['overview', 'sensors', 'connection', 'console', 'setup'].includes(requested) ? requested : 'overview';
+  const page = ['overview', 'sensors', 'apps', 'connection', 'console', 'setup'].includes(requested) ? requested : 'overview';
   if (page === 'setup') guide.render();
   else guide.restore();
   for (const section of document.querySelectorAll('.view')) section.hidden = section.id !== page;
@@ -253,6 +255,7 @@ function refresh() {
       }
       renderStatus();
       nasView.update(state);
+      appsView.update(state);
       renderTelemetry();
       updateControls();
     } catch (error) {

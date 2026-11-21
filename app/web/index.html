@@ -36,6 +36,7 @@
       <nav aria-label="Dashboard">
         <a href="#overview" data-page="overview"><span class="nav-icon" aria-hidden="true">◫</span> Overview</a>
         <a href="#console" data-page="console"><span class="nav-icon" aria-hidden="true">▣</span> Virtual Console</a>
+        <a href="#apps" data-page="apps"><span class="nav-icon" aria-hidden="true">⊞</span> Apps</a>
         <a href="#sensors" data-page="sensors"><span class="nav-icon" aria-hidden="true">≋</span> Sensors</a>
         <a href="#connection" data-page="connection"><span class="nav-icon" aria-hidden="true">⚙</span> Connection</a>
         <a id="open-idrac" target="_blank" rel="noopener noreferrer" hidden><span class="nav-icon" aria-hidden="true">↗</span> Open iDRAC</a>
@@ -75,7 +76,7 @@
             <article class="metric"><h2>Average fan speed</h2><div class="metric-value"><strong id="average-rpm">—</strong><span>RPM</span></div><p id="fan-summary">Waiting for fan readings</p></article>
             <article class="metric"><h2>Hottest sensor</h2><div class="metric-value"><strong id="peak-temp">—</strong><span id="peak-unit">°C</span></div><p id="temp-summary">Waiting for temperature readings</p></article>
             <article class="metric" id="nas-cpu-card" hidden><h2>CPU usage</h2><div class="metric-value"><strong id="nas-cpu">—</strong><span>%</span></div><progress id="nas-cpu-meter" max="100" aria-label="CPU usage"></progress></article>
-            <article class="metric" id="nas-memory-card" hidden><h2>Available memory</h2><div class="metric-value"><strong id="nas-memory">—</strong><span id="nas-memory-unit"></span></div><p id="nas-memory-total"></p></article>
+            <article class="metric" id="nas-memory-card" hidden><h2>Available memory</h2><div class="metric-value"><strong id="nas-memory">—</strong><span id="nas-memory-unit"></span></div><p id="nas-memory-total"></p><progress id="nas-memory-meter" max="100" aria-label="Available share of installed memory" hidden></progress></article>
           </div>
           <div class="overview-grid">
             <section class="overview-column" aria-labelledby="idrac-heading">
@@ -104,6 +105,11 @@
             </section>
             <section class="overview-column" aria-labelledby="nas-heading">
               <div class="source-heading"><div><h2 id="nas-heading">TrueNAS system</h2><p id="nas-status">Loading TrueNAS connection…</p></div><a href="#connection" class="text-link">Connection settings</a></div>
+              <section class="card apps-card" id="overview-apps-card" aria-labelledby="overview-apps-title" hidden>
+                <div class="card-header"><div><h3 id="overview-apps-title">Apps</h3><p id="overview-apps-status">Loading apps…</p></div><a href="#apps" class="text-link">All apps →</a></div>
+                <div class="app-sort"><label for="overview-apps-sort">Sort by</label><select id="overview-apps-sort"><option value="cpu">CPU usage</option><option value="memory">Memory usage</option></select></div>
+                <ul class="app-list" id="overview-apps-list"></ul>
+              </section>
               <div class="overview-column" id="nas-data" hidden>
                 <section class="card">
                   <div class="card-header"><h3>Storage pools</h3></div>
@@ -119,6 +125,16 @@
               </div>
             </section>
           </div>
+        </section>
+        <section id="apps" class="view" aria-labelledby="apps-title" hidden>
+          <div class="page-header"><h1 id="apps-title">Apps</h1><p>Crashed apps appear first. Each bar compares usage with the highest app reading for that resource.</p></div>
+          <section class="card apps-card">
+            <div class="card-header"><div><h2>Installed apps</h2><p id="apps-status" role="status">Loading apps…</p></div>
+              <div class="app-sort"><label for="apps-sort">Sort by</label><select id="apps-sort"><option value="cpu">CPU usage</option><option value="memory">Memory usage</option></select></div>
+            </div>
+            <a id="apps-setup" class="text-link" href="#connection" hidden>Connect TrueNAS →</a>
+            <ul class="app-list" id="apps-list"></ul>
+          </section>
         </section>
         <section id="sensors" class="view" aria-labelledby="sensors-title" hidden>
           <div class="page-header"><h1 id="sensors-title">Sensors</h1><p>Browse the hardware readings available over IPMI.</p></div>

@@ -54,6 +54,8 @@ Rackview supports the TrueNAS 25.10 JSON-RPC WebSocket API. **Overview** shows C
 4. If you normally browse the TrueNAS web interface over HTTP, you can keep doing so. To find the separate HTTPS listener, run `midclt call system.general.config | jq .ui_httpsport` in the TrueNAS shell. Enter that HTTPS port in Rackview. TrueNAS can revoke a key presented over insecure transport. [TrueNAS API authentication](https://www.truenas.com/docs/scale/25.10/api/)
 5. Select **Test TrueNAS connection**, then **Save TrueNAS connection**. Both actions verify account permissions and read the pool and alert lists. The saved key lives in the private data mount. Return to **Overview** to see the readings.
 
+The **Apps** card on Overview shows the first three installed TrueNAS apps in the selected order. Open **Apps** for the full inventory, versions and available updates. Both views put crashed apps first, then sort by highest CPU or memory usage. The bars compare readings across installed apps. The read-only connection uses `app.query` and one `app.stats` sample per refresh. If usage is unavailable, the inventory still shows app states.
+
 ## Embedded Virtual Console
 
 Rackview remembers successful console connections for each iDRAC in its persistent data directory. Select **Remember VNC password on this Rackview server** to start the console automatically the next time you open **Virtual Console**. Opening the tab uses the selected profile with a saved password, or the most recent profile with one. If only the port, TLS setting, and fingerprint were saved, enter the VNC password and select **Connect to console**. **Disconnect** ends the session. **Forget saved connection** removes the selected profile and its saved password.

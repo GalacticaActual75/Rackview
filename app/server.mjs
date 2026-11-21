@@ -7,12 +7,13 @@ import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { AUTOMATIC, MANUAL, ipmi, parseController, parseSensors, speedCommand } from './ipmi.mjs';
 import { installConsole } from './console.mjs';
-import { nasConnection, readNas } from './truenas.mjs';
+import { nasConnection, readApps, readNas } from './truenas.mjs';
 
 const SENSOR_INTERVAL = 10_000;
 const assets = new Map([
   ['/', ['index.html', 'text/html']],
   ['/setup.js', ['setup.js', 'text/javascript']],
+  ['/apps.js', ['apps.js', 'text/javascript']],
   ['/app.js', ['app.js', 'text/javascript']],
   ['/console.js', ['console.js', 'text/javascript']],
   ['/truenas.js', ['truenas.js', 'text/javascript']],
@@ -139,9 +140,11 @@ export async function createDashboard({
   let nasSaving = false;
   let nasRead;
   let nasReadAt = 0;
-  async function queryNas(config) {
+  let appsRead;
+  let appsReadAt = 0;
+  async function queryNas(config, reader = readNas) {
     if (!ws) throw new HttpError(503, 'TrueNAS WebSocket support is unavailable.');
-    try { return await readNas(config, ws.WebSocket ?? ws); }
+    try { return await reader(config, ws.WebSocket ?? ws); }
     catch (error) { throw new HttpError(502, error.message); }
   }
   const csrf = randomBytes(32).toString('base64url');
@@ -279,6 +282,14 @@ export async function createDashboard({
           csrf, revision, sensors, updatedAt, sensorError, lastCommand, consoleAvailable: !!issueConsoleTicket, pollMs: SENSOR_INTERVAL,
         });
       }
+      if (method === 'GET' && url === '/api/truenas/apps') {
+        if (!nas) throw new HttpError(409, 'Set up the read-only TrueNAS connection first.');
+        if (!appsRead || Date.now() - appsReadAt > 30000) {
+          appsReadAt = Date.now();
+          appsRead = queryNas(nas, readApps);
+        }
+        return json(response, 200, await appsRead);
+      }
       if (method === 'GET' && url === '/api/truenas/status') {
         if (!nas) throw new HttpError(409, 'Set up the read-only TrueNAS connection first.');
         if (!nasRead || Date.now() - nasReadAt > 30000) {
@@ -313,6 +324,7 @@ export async function createDashboard({
               await saveJson(nasPath, config);
               nas = config;
               nasRevision = randomBytes(16).toString('hex');
+              appsRead = undefined;
               nasRead = Promise.resolve(snapshot);
               nasReadAt = Date.now();
             }
