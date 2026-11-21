@@ -12,7 +12,7 @@ Create a **Pull** sync for the Docker host. Choose branch `main` and Compose fil
 
 ### 2. Set the storage path and dashboard login
 
-Open the project in Arcane and go to **Configuration → .env**. Copy the fields from [`.env.example`](.env.example), enter your values, and save.
+The default Rackview username is **admin** and the default password is **admin**. To change them, open the Rackview project in Arcane and go to **Configuration → .env**. Add `DASHBOARD_USER` and `DASHBOARD_PASSWORD` if the lines are missing, enter your values, save, and redeploy. See [`.env.example`](.env.example) for all settings.
 
 | Setting | What to enter |
 | --- | --- |
@@ -22,13 +22,13 @@ Open the project in Arcane and go to **Configuration → .env**. Copy the fields
 | `RACKVIEW_PORT` | The published host port. Defaults to `8080`. |
 | `RACKVIEW_BIND` | An optional host interface address for the published port. |
 
-If you supply a storage path, create the directory before deployment. Rackview runs as UID and GID `1000`, so UID `1000` needs permission to read, write, and traverse that directory. Keep the directory private because it stores the iDRAC connection settings and any generated dashboard login. On TrueNAS, if you created a child ZFS dataset under Arcane's project root after Arcane started, restart the Arcane manager so its mount can include the new dataset.
+If you supply a storage path, create the directory before deployment. Rackview runs as UID and GID `1000`, so UID `1000` needs permission to read, write, and traverse that directory. Keep the directory private because it stores the iDRAC connection settings. On TrueNAS, if you created a child ZFS dataset under Arcane's project root after Arcane started, restart the Arcane manager so its mount can include the new dataset.
 
 Keep `.env` and the files in the data directory on the deployment host. The GitHub credential is used by Arcane to pull a private copy of the repository. Dashboard users sign in with the Rackview login you configure. You will enter the iDRAC login and VNC password separately in Rackview.
 
 ### 3. Build, deploy, and sign in
 
-Select **Build & Deploy**, then open Rackview using the Docker host address and the published port. Sign in with the dashboard login you configured. If you left the login fields blank, retrieve the generated login from the `rackview` container's terminal with `cat /var/lib/rackview/dashboard-login.json`.
+Select **Build & Deploy**, then open Rackview using the Docker host address and the published port. On upgrades from versions that generated credentials, each blank or omitted dashboard login field now defaults to `admin`. To keep a previous login, set both fields in the project's `.env` before redeploying.
 
 For a standalone Docker installation, copy `.env.example` to `.env`, set the same fields, and run `docker compose up -d --build` from the repository directory. If you use an HTTPS reverse proxy, forward WebSocket upgrades to the Rackview port for the virtual console.
 

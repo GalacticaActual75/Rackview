@@ -2,8 +2,8 @@ name: rackview
 
 # Set these in the project's local .env before the first launch.
 # RACKVIEW_DATA_SOURCE=   # Prepared absolute host path, or blank for a Docker volume
-# DASHBOARD_USER=        # Dashboard login name
-# DASHBOARD_PASSWORD=    # Dashboard login password
+# DASHBOARD_USER=        # Defaults to admin
+# DASHBOARD_PASSWORD=    # Defaults to admin
 
 services:
   rackview:

@@ -92,24 +92,12 @@ async function saveJson(path, value) {
   }
 }
 
-async function dashboardCredentials(dataDir) {
-  const user = process.env.DASHBOARD_USER;
-  const password = process.env.DASHBOARD_PASSWORD;
-  if (user && password) return { user, password };
-
-  const path = join(dataDir, 'dashboard-login.json');
-  await mkdir(dataDir, { recursive: true, mode: 0o700 });
-  try {
-    const generated = { user: `rv-${randomBytes(4).toString('hex')}`, password: randomBytes(24).toString('base64url') };
-    await writeFile(path, `${JSON.stringify(generated)}\n`, { mode: 0o600, flag: 'wx' });
-  } catch (error) {
-    if (error.code !== 'EEXIST') throw error;
-  }
-  const generated = JSON.parse(await readFile(path, 'utf8'));
-  return { user: user || generated.user, password: password || generated.password };
-}
-
-export async function createDashboard({ dataDir, user, password, run = ipmi, ws, novncDir = '/usr/share/novnc' }) {
+export async function createDashboard({
+  dataDir,
+  user = process.env.DASHBOARD_USER || 'admin',
+  password = process.env.DASHBOARD_PASSWORD || 'admin',
+  run = ipmi, ws, novncDir = '/usr/share/novnc',
+}) {
   if (!user || user.includes(':') || !password) {
     throw new Error('Set DASHBOARD_PASSWORD and a valid DASHBOARD_USER before starting Rackview.');
   }
@@ -366,7 +354,6 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   const dataDir = process.env.DATA_DIR || './data';
   const server = await createDashboard({
     dataDir,
-    ...await dashboardCredentials(dataDir),
     ws: createRequire(import.meta.url)('/usr/share/nodejs/ws/index.js'),
   });
   server.listen(8080, () => console.log('Rackview listening on port 8080'));
