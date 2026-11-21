@@ -226,6 +226,11 @@ function renderStatus() {
   idracLink.hidden = !host;
   if (host) idracLink.href = `https://${host.includes(':') ? `[${host}]` : host}/`;
   else idracLink.removeAttribute('href');
+  const nasLink = $('open-truenas');
+  const nasUrl = state.nas?.url;
+  nasLink.hidden = !nasUrl;
+  if (nasUrl) nasLink.href = nasUrl;
+  else nasLink.removeAttribute('href');
   $('connection-title').textContent = state.connection ? 'Connection' : 'Connect your iDRAC';
   $('connection-intro').textContent = 'Manage the iDRAC and TrueNAS connections Rackview uses.';
   display('app-error', state.sensorError ? `Sensor update failed. ${state.sensorError}` : '', 'error');
