@@ -10,6 +10,9 @@ export function setupNas({ $, request, display, refresh }) {
   let revision;
   let busy = false;
   let pendingRead;
+  let target;
+  let lastSnapshot;
+  let lastPerformance;
 
   function hideReadings() {
     for (const id of ['nas-data', 'nas-cpu-card', 'nas-memory-card']) $(id).hidden = true;
@@ -17,7 +20,8 @@ export function setupNas({ $, request, display, refresh }) {
 
   function render(data) {
     const system = data.system ?? {};
-    const sample = data.sample ?? {};
+    if (data.sample) lastPerformance = { sample: data.sample, at: data.updatedAt };
+    const sample = lastPerformance?.sample ?? {};
     const rate = value => Number.isFinite(value) ? `${bytes(value)}/s` : '—';
     const stats = [];
     if (system.model) stats.push(['Processor', system.model]);
@@ -53,6 +57,9 @@ export function setupNas({ $, request, display, refresh }) {
       return item;
     }));
     $('nas-sample-note').hidden = !!data.sample;
+    $('nas-sample-note').textContent = lastPerformance
+      ? `Performance counters last received ${new Date(lastPerformance.at).toLocaleString()}.`
+      : 'Performance counters are unavailable for this sample.';
     const interfaces = sample.interfaces ?? [];
     $('nas-network').hidden = !interfaces.length;
     $('nas-interfaces').replaceChildren(...interfaces.map(nic => {
@@ -98,7 +105,6 @@ export function setupNas({ $, request, display, refresh }) {
       li.textContent = message;
       return li;
     }));
-    $('nas-status').textContent = `${data.pools.length} pools · Updated ${new Date(data.updatedAt).toLocaleTimeString()}`;
     $('nas-data').hidden = false;
   }
 
@@ -111,19 +117,31 @@ export function setupNas({ $, request, display, refresh }) {
       $('nas-key').value = '';
       $('nas-key').required = !state.nas;
       $('nas-key').placeholder = state.nas ? 'Use saved key' : '';
-      hideReadings();
-      $('nas-status').textContent = state.nas ? 'Reading system stats, storage pools, and alerts…' : 'Connect TrueNAS to view system stats, storage pools, and alerts.';
+      const nextTarget = state.nas && JSON.stringify([state.nas.url, state.nas.user, state.nas.fingerprint]);
+      if (!state.nas || target !== nextTarget) {
+        target = nextTarget;
+        lastSnapshot = lastPerformance = undefined;
+        hideReadings();
+        $('nas-status').textContent = state.nas ? 'Reading system stats, storage pools, and alerts…' : 'Connect TrueNAS to view system stats, storage pools, and alerts.';
+      }
     }
     $('nas-test').disabled = $('nas-save').disabled = busy;
     if (!state.nas || pendingRead === revision) return;
     const current = revision;
     pendingRead = current;
     request('/api/truenas/status').then(data => {
-      if (current === revision) render(data);
+      if (current !== revision) return;
+      if (!lastSnapshot || data.updatedAt !== lastSnapshot.updatedAt) {
+        render(data);
+        lastSnapshot = data;
+      }
+      $('nas-status').textContent = `${data.pools.length} pools · Updated ${new Date(data.updatedAt).toLocaleTimeString()}`;
+      if (!data.sample && lastPerformance) $('nas-status').textContent += ' · Performance readings delayed';
     }).catch(error => {
       if (current === revision) {
-        $('nas-status').textContent = error.message;
-        hideReadings();
+        $('nas-status').textContent = lastSnapshot
+          ? `Last updated ${new Date(lastSnapshot.updatedAt).toLocaleString()} · ${error.message}`
+          : error.message;
       }
     }).finally(() => { if (pendingRead === current) pendingRead = undefined; });
   }
