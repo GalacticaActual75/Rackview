@@ -11,15 +11,30 @@ export function setupNas({ $, request, display, refresh }) {
   let busy = false;
   let pendingRead;
 
+  function hideReadings() {
+    for (const id of ['nas-data', 'nas-cpu-card', 'nas-memory-card']) $(id).hidden = true;
+  }
+
   function render(data) {
     const system = data.system ?? {};
     const sample = data.sample ?? {};
     const rate = value => Number.isFinite(value) ? `${bytes(value)}/s` : '—';
     const stats = [];
     if (system.model) stats.push(['Processor', system.model]);
-    if (Number.isFinite(sample.cpu)) stats.push(['CPU usage', `${Number(sample.cpu.toFixed(1))}%`]);
-    if (Number.isFinite(sample.ramTotal)) stats.push(['Total RAM', bytes(sample.ramTotal)]);
-    if (Number.isFinite(sample.ramAvailable)) stats.push(['Available RAM', bytes(sample.ramAvailable)]);
+    const hasCpu = Number.isFinite(sample.cpu);
+    $('nas-cpu-card').hidden = !hasCpu;
+    if (hasCpu) {
+      $('nas-cpu').textContent = Number(sample.cpu.toFixed(1));
+      $('nas-cpu-meter').value = sample.cpu;
+    }
+    const hasMemory = Number.isFinite(sample.ramAvailable);
+    $('nas-memory-card').hidden = !hasMemory;
+    if (hasMemory) {
+      const [amount, unit] = bytes(sample.ramAvailable).split(' ');
+      $('nas-memory').textContent = amount;
+      $('nas-memory-unit').textContent = unit;
+      $('nas-memory-total').textContent = Number.isFinite(sample.ramTotal) ? `of ${bytes(sample.ramTotal)} installed` : '';
+    } else if (Number.isFinite(sample.ramTotal)) stats.push(['Total RAM', bytes(sample.ramTotal)]);
     if (Number.isFinite(sample.arc)) stats.push(['ZFS ARC cache', bytes(sample.arc)]);
     if (Number.isFinite(sample.diskRead)) stats.push(['Disk read', rate(sample.diskRead)]);
     if (Number.isFinite(sample.diskWrite)) stats.push(['Disk write', rate(sample.diskWrite)]);
@@ -47,15 +62,35 @@ export function setupNas({ $, request, display, refresh }) {
       return row;
     }));
     $('nas-pools').replaceChildren(...data.pools.map(p => {
-      const row = document.createElement('tr');
+      const item = document.createElement('li');
+      const title = document.createElement('strong');
+      title.textContent = p.name;
+      const health = document.createElement('span');
+      health.className = 'pool-status';
+      health.textContent = p.healthy === false && p.status === 'ONLINE' ? 'ONLINE · needs attention' : p.status || 'Unknown';
+      if (p.healthy === false || (p.status && p.status !== 'ONLINE')) health.classList.add('attention');
+      item.append(title, health);
+      if (Number.isFinite(p.allocated) && Number.isFinite(p.free) && p.allocated + p.free > 0) {
+        const meter = document.createElement('progress');
+        meter.max = p.allocated + p.free;
+        meter.value = p.allocated;
+        meter.setAttribute('aria-label', `${p.name} allocated space`);
+        item.append(meter);
+      }
+      const capacity = document.createElement('span');
+      capacity.textContent = `${bytes(p.allocated)} allocated · ${bytes(p.free)} free`;
+      const scanText = document.createElement('small');
       const scan = p.scan;
       const progress = Number.isFinite(scan?.percent) ? ` ${Math.round(scan.percent)}%` : '';
-      const health = p.healthy === false && p.status === 'ONLINE' ? 'ONLINE · needs attention' : p.status;
-      for (const text of [p.name, health, bytes(p.allocated), bytes(p.free), scan ? `${scan.type} · ${scan.state || 'Unknown'}${progress}` : 'Idle']) {
-        row.insertCell().textContent = text;
-      }
-      return row;
+      scanText.textContent = scan ? `${scan.type} · ${scan.state || 'Unknown'}${progress}` : 'Scrub / resilver idle';
+      item.append(capacity, scanText);
+      return item;
     }));
+    if (!data.pools.length) {
+      const empty = document.createElement('li');
+      empty.textContent = 'No storage pools reported.';
+      $('nas-pools').append(empty);
+    }
     const messages = data.alerts.map(a => `${a.level} · ${a.message}`);
     if (!messages.length) messages.push('No active alerts.');
     $('nas-alerts').replaceChildren(...messages.map(message => {
@@ -76,7 +111,7 @@ export function setupNas({ $, request, display, refresh }) {
       $('nas-key').value = '';
       $('nas-key').required = !state.nas;
       $('nas-key').placeholder = state.nas ? 'Use saved key' : '';
-      $('nas-data').hidden = true;
+      hideReadings();
       $('nas-status').textContent = state.nas ? 'Reading system stats, storage pools, and alerts…' : 'Connect TrueNAS to view system stats, storage pools, and alerts.';
     }
     $('nas-test').disabled = $('nas-save').disabled = busy;
@@ -88,7 +123,7 @@ export function setupNas({ $, request, display, refresh }) {
     }).catch(error => {
       if (current === revision) {
         $('nas-status').textContent = error.message;
-        $('nas-data').hidden = true;
+        hideReadings();
       }
     }).finally(() => { if (pendingRead === current) pendingRead = undefined; });
   }
