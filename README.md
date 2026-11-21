@@ -2,15 +2,18 @@
 
 Rackview brings Dell iDRAC cooling, hardware sensors, a VNC console, and read-only TrueNAS monitoring into one dashboard. Overview shows server load, pool capacity and alerts. The Apps tab shows installed TrueNAS applications with crashed apps first and CPU or memory sorting. The layout adapts to phones and desktops. You can configure each integration independently.
 
-## Install on TrueNAS or another Docker manager
+## Quick install on TrueNAS or Arcane
 
-**[Copy the standalone Compose file](compose.truenas.yaml)**. It pulls the Rackview image and creates a named volume for settings. It works without a repository checkout, build context, or separate environment file.
+**No GitHub login is required.** TrueNAS and Arcane can pull the public Rackview image directly. Open the [raw Compose YAML](https://raw.githubusercontent.com/GalacticaActual75/Rackview/main/compose.truenas.yaml) and copy the entire file.
 
-1. On TrueNAS 25.10, select an Apps pool if this is your first app. Go to **Apps → Discover Apps → ⋮ → Install via YAML** and enter `rackview` as the application name. In another Docker manager, open its Compose stack editor. [TrueNAS custom app installation](https://apps.truenas.com/managing-apps/installing-custom-apps/)
-2. Paste the **entire** Compose file. Set `DASHBOARD_PASSWORD` to a unique password before deploying. You can also change `DASHBOARD_USER`. If your password contains a literal dollar sign, enter it as `$$` in Compose. If port `8080` is occupied, change the first port in `"8080:8080"` to a free host port.
-3. Select **Save** or **Deploy**. Open `http://<server-address>:<host-port>` on your management network, sign in, and choose your integrations in **Set up Rackview**. Use an HTTPS reverse proxy with WebSocket forwarding when accessing Rackview across an untrusted network.
+| Platform | Where to paste the YAML | How to start Rackview |
+| --- | --- | --- |
+| **TrueNAS 25.10** | Select an Apps pool if this is your first app. Open **Apps → Discover Apps → ⋮ → Install via YAML**, name the app `rackview`, and paste the YAML. | Set your dashboard password, then click **Save**. [TrueNAS guide](https://apps.truenas.com/managing-apps/installing-custom-apps/) |
+| **Arcane** | Open **Projects → Create Project**, select your Docker host, name the project `rackview`, and paste the YAML into the Compose editor. | Set your dashboard password, click **Create Project**, then **Up**. [Arcane guide](https://getarcane.app/docs/docker/projects) |
 
-**Image access.** The Compose file pulls `ghcr.io/galacticaactual75/rackview:latest` anonymously after the package is public. A private copy requires registry credentials with package read access. [GitHub Container registry authentication](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry)
+Set `DASHBOARD_PASSWORD` in the pasted YAML to a unique password. The default dashboard username is `admin`, and you can change it with `DASHBOARD_USER`. Write a literal dollar sign as `$$` in Compose. If port `8080` is occupied, change the first port in `"8080:8080"` to a free host port.
+
+Open `http://<server-address>:8080` on your management network (or use your chosen host port), sign in with your Rackview credentials, and follow **Set up Rackview**. Use an HTTPS reverse proxy with WebSocket forwarding when accessing Rackview across an untrusted network.
 
 **Storage and updates.** Rackview writes its iDRAC login, TrueNAS API key, and optionally its VNC password under `/var/lib/rackview`. Protect the volume and its backups as credentials. To use a TrueNAS dataset, replace the `rackview-data` source in the service volume mapping with its absolute host path and give UID/GID `1000:1000` access. For example, the dataset `tank/apps/rackview` uses the mapping `"/mnt/tank/apps/rackview:/var/lib/rackview"`. For Arcane Git Sync, set only the host path in `RACKVIEW_DATA_SOURCE`. To update, pull the latest image and recreate the service using the same project and volume. To pin a build, replace `:latest` with `:sha-<full-git-commit>`. If migrating an existing installation, point the new service at its existing data mount.
 
@@ -26,11 +29,11 @@ These screenshots use fictional hosts, apps and sensor readings. The virtual con
 | --- | --- | --- |
 | [![Manual fan target and the duty reported by iDRAC](docs/screenshots/fan-control.jpg)](docs/screenshots/fan-control.jpg) | [![Rackview virtual console displaying a simulated server](docs/screenshots/virtual-console.jpg)](docs/screenshots/virtual-console.jpg) | [![IPMI sensors grouped by cooling, temperature and other hardware](docs/screenshots/sensors.jpg)](docs/screenshots/sensors.jpg) |
 
-## Build from source with Arcane Git Sync
+## Optional source build with Arcane Git Sync
 
 ### 1. Connect the repository
 
-In **Git Syncs → Git Repositories**, add this repository. For a private GitHub repo, use a read-only token for HTTPS or an SSH deploy key scoped to the repo. With SSH, add the `.pub` key in GitHub's **Settings → Deploy keys**, then enter the SSH clone URL and the matching private key in Arcane. [Arcane Git Sync documentation](https://getarcane.app/docs/docker/git-sync) · [GitHub deploy key guide](https://docs.github.com/en/authentication/connecting-to-github-with-ssh/managing-deploy-keys#deploy-keys)
+For a source build that follows the public repository, open **Git Syncs → Git Repositories** and add the HTTPS clone URL `https://github.com/GalacticaActual75/Rackview.git`. Public HTTPS reads work without GitHub credentials. [Arcane Git Sync documentation](https://getarcane.app/docs/docker/git-sync)
 
 Create a **Pull** sync for the Docker host. Choose branch `main` and Compose file `compose.yaml`. Enable **Sync Files** so Arcane copies the `app/` build context, and leave **Redeploy After Sync** off while you configure the deployment. Run the first sync to create the project.
 
@@ -48,13 +51,13 @@ The default Rackview username is **admin** and the default password is **admin**
 
 If you supply a storage path, create the directory before deployment. Rackview runs as UID and GID `1000`, so UID `1000` needs permission to read, write, and traverse that directory. Keep the directory private because it stores the iDRAC connection settings. On TrueNAS, if you created a child ZFS dataset under Arcane's project root after Arcane started, restart the Arcane manager so its mount can include the new dataset.
 
-Keep `.env` and the files in the data directory on the deployment host. The GitHub credential is used by Arcane to pull a private copy of the repository. Dashboard users sign in with the Rackview login you configure. You will enter the iDRAC login and VNC password separately in Rackview.
+Keep `.env` and the files in the data directory on the deployment host. Dashboard users sign in with the Rackview login you configure. You will enter the iDRAC login and VNC password separately in Rackview.
 
 ### 3. Build, deploy, and sign in
 
 Select **Build & Deploy**, open Rackview using the Docker host address and published port, and enter your dashboard login on the Rackview sign-in page. The browser tab stays signed in across refreshes for up to 12 hours. **Sign out** ends the session. On upgrades from versions that generated credentials, each blank or omitted dashboard login field now defaults to `admin`. To keep a previous login, set both fields in the project's `.env` before redeploying.
 
-For a standalone Docker installation, copy `.env.example` to `.env`, set the same fields, and run `docker compose up -d --build` from the repository directory. If you use an HTTPS reverse proxy, forward WebSocket upgrades to the Rackview port for the virtual console.
+To build from a local checkout with Docker Compose, copy `.env.example` to `.env`, set the same fields, and run `docker compose up -d --build` from the repository directory. If you use an HTTPS reverse proxy, forward WebSocket upgrades to the Rackview port for the virtual console.
 
 ## Connect to iDRAC
 
