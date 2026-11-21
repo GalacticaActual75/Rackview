@@ -10,17 +10,21 @@ Rackview brings Dell iDRAC cooling, hardware sensors, a VNC console, and read-on
 2. Paste the **entire** Compose file. Set `DASHBOARD_PASSWORD` to a unique password before deploying. You can also change `DASHBOARD_USER`. If your password contains a literal dollar sign, enter it as `$$` in Compose. If port `8080` is occupied, change the first port in `"8080:8080"` to a free host port.
 3. Select **Save** or **Deploy**. Open `http://<server-address>:<host-port>` on your management network, sign in, and choose your integrations in **Set up Rackview**. Use an HTTPS reverse proxy with WebSocket forwarding when accessing Rackview across an untrusted network.
 
-**Image access.** The image is `ghcr.io/galacticaactual75/rackview:latest`. Public GHCR images support anonymous pulls. During private testing, configure the manager's `ghcr.io` registry credentials using an account with package access and a token with `read:packages`. Keep registry credentials in the manager's credential settings. [GitHub Container registry authentication](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry)
+**Image access.** The Compose file pulls `ghcr.io/galacticaactual75/rackview:latest` anonymously after the package is public. A private copy requires registry credentials with package read access. [GitHub Container registry authentication](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry)
 
 **Storage and updates.** Rackview writes its iDRAC login, TrueNAS API key, and optionally its VNC password under `/var/lib/rackview`. Protect the volume and its backups as credentials. To use a TrueNAS dataset, replace the `rackview-data` source in the service volume mapping with its absolute host path and give UID/GID `1000:1000` access. For example, the dataset `tank/apps/rackview` uses the mapping `"/mnt/tank/apps/rackview:/var/lib/rackview"`. For Arcane Git Sync, set only the host path in `RACKVIEW_DATA_SOURCE`. To update, pull the latest image and recreate the service using the same project and volume. To pin a build, replace `:latest` with `:sha-<full-git-commit>`. If migrating an existing installation, point the new service at its existing data mount.
 
 ## Screenshots
 
-These screenshots show Rackview with fictional hosts, apps and sensor readings.
+These screenshots use fictional hosts, apps and sensor readings. The virtual console shows a simulated server screen.
 
 | Server overview | Installed apps |
 | --- | --- |
 | [![Rackview overview with hardware cooling, verified fan duty and TrueNAS storage](docs/screenshots/overview.jpg)](docs/screenshots/overview.jpg) | [![Rackview Apps with crashed apps first and CPU and memory usage as shares of host capacity](docs/screenshots/apps.jpg)](docs/screenshots/apps.jpg) |
+
+| Fan control | Virtual console | Sensors |
+| --- | --- | --- |
+| [![Manual fan target and the duty reported by iDRAC](docs/screenshots/fan-control.jpg)](docs/screenshots/fan-control.jpg) | [![Rackview virtual console displaying a simulated server](docs/screenshots/virtual-console.jpg)](docs/screenshots/virtual-console.jpg) | [![IPMI sensors grouped by cooling, temperature and other hardware](docs/screenshots/sensors.jpg)](docs/screenshots/sensors.jpg) |
 
 ## Build from source with Arcane Git Sync
 
