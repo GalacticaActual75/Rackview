@@ -7,6 +7,11 @@ export function sortApps(apps, metric) {
     value(b) - value(a) || a.name.localeCompare(b.name));
 }
 
+function hostPercent(value) {
+  if (value > 0 && value < 0.1) return '<0.1%';
+  return value.toLocaleString(undefined, { maximumFractionDigits: 1 }) + '%';
+}
+
 function usage(label, value, maximum, format) {
   const cell = document.createElement('div');
   cell.className = 'app-usage';
@@ -15,17 +20,21 @@ function usage(label, value, maximum, format) {
   caption.textContent = label;
   reading.textContent = Number.isFinite(value) ? format(value) : '—';
   cell.append(caption, reading);
-  if (Number.isFinite(value)) {
+  if (Number.isFinite(value) && Number.isFinite(maximum) && maximum > 0) {
     const bar = document.createElement('progress');
-    bar.max = maximum || 1;
+    bar.max = maximum;
     bar.value = value;
     bar.setAttribute('aria-hidden', 'true');
+    if (label === 'Memory') {
+      reading.textContent += ' · ' + hostPercent(100 * value / maximum);
+      cell.title = bytes(value) + ' of ' + bytes(maximum) + ' host RAM';
+    } else cell.title = hostPercent(value) + ' of total host CPU';
     cell.append(bar);
   }
   return cell;
 }
 
-function appRow(app, maxCpu, maxMemory, detailed) {
+function appRow(app, hostMemory, detailed) {
   const row = document.createElement('li');
   const title = document.createElement('div');
   title.className = 'app-name';
@@ -43,8 +52,8 @@ function appRow(app, maxCpu, maxMemory, detailed) {
     version.textContent = [app.version, app.update && 'Update available'].filter(Boolean).join(' · ');
     title.append(version);
   }
-  row.append(title, usage('CPU', app.cpu, maxCpu, v => v.toLocaleString(undefined, { maximumFractionDigits: 1 }) + '%'),
-    usage('Memory', app.memory, maxMemory, bytes));
+  row.append(title, usage('CPU', app.cpu, 100, hostPercent),
+    usage('Memory', app.memory, hostMemory, bytes));
   return row;
 }
 
@@ -60,10 +69,9 @@ export function setupApps({ $, request }) {
   }
   function render() {
     const sorted = sortApps(snapshot?.apps ?? [], metric);
-    const maxCpu = sorted.reduce((max, app) => Math.max(max, app.cpu ?? 0), 0);
-    const maxMemory = sorted.reduce((max, app) => Math.max(max, app.memory ?? 0), 0);
-    $('apps-list').replaceChildren(...sorted.map(app => appRow(app, maxCpu, maxMemory, true)));
-    $('overview-apps-list').replaceChildren(...sorted.slice(0, 3).map(app => appRow(app, maxCpu, maxMemory, false)));
+    const hostMemory = snapshot?.hostMemory;
+    $('apps-list').replaceChildren(...sorted.map(app => appRow(app, hostMemory, true)));
+    $('overview-apps-list').replaceChildren(...sorted.slice(0, 3).map(app => appRow(app, hostMemory, false)));
     for (const select of selectors) {
       select.value = metric;
       select.disabled = sorted.length < 2;

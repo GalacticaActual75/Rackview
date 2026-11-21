@@ -104,6 +104,7 @@ export function readApps(config, WebSocket) {
   return withNas(config, WebSocket, async call => {
     const select = ['id', 'name', 'state', 'human_version', 'upgrade_available', 'image_updates_available'];
     const inventory = await call('app.query', [[], { select }], 'TrueNAS could not list apps. Check that Apps is configured and the account has Apps read access.');
+    const info = inventory.length ? await call('system.info', [], 'Host memory unavailable.').catch(() => null) : null;
     const fields = inventory.length ? await call('core.subscribe', ['app.stats'], 'App usage unavailable.').catch(() => null) : [];
     const usage = new Map((Array.isArray(fields) ? fields : []).map(app => [app.app_name, app]));
     const apps = inventory.map(app => {
@@ -112,6 +113,7 @@ export function readApps(config, WebSocket) {
         update: app.upgrade_available || app.image_updates_available,
         cpu: stats?.cpu_usage ?? null, memory: stats?.memory ?? null };
     });
-    return { apps, usageAvailable: Array.isArray(fields), updatedAt: new Date().toISOString() };
+    return { apps, hostMemory: Number.isFinite(info?.physmem) && info.physmem > 0 ? info.physmem : null,
+      usageAvailable: Array.isArray(fields), updatedAt: new Date().toISOString() };
   });
 }

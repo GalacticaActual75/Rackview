@@ -16,7 +16,7 @@ function loginWith(privilege, calls, reporting = true, reader = readNas) {
       calls.push(method);
       const results = {
         'auth.login_ex': { response_type: 'SUCCESS', user_info: { privilege } },
-        'pool.query': [], 'alert.list': [], 'system.info': { model: 'Test CPU', uptime_seconds: 123 },
+        'pool.query': [], 'alert.list': [], 'system.info': { model: 'Test CPU', uptime_seconds: 123, physmem: 32768 },
         'app.query': [
           { id: 'offline', name: 'Offline', state: 'CRASHED' },
           { id: 'first', name: 'Worker', state: 'RUNNING' },
@@ -53,8 +53,9 @@ function loginWith(privilege, calls, reporting = true, reader = readNas) {
 test('apps keep crashed entries first under either sort, distinguish zero from missing and survive denied stats', async () => {
   const privilege = { roles: ['APPS_READ'], web_shell: false };
   const calls = [];
-  const { apps, usageAvailable } = await loginWith(privilege, calls, true, readApps);
-  assert.deepEqual(calls, ['auth.login_ex', 'app.query', 'core.subscribe']);
+  const { apps, usageAvailable, hostMemory } = await loginWith(privilege, calls, true, readApps);
+  assert.deepEqual(calls, ['auth.login_ex', 'app.query', 'system.info', 'core.subscribe']);
+  assert.equal(hostMemory, 32768);
   assert.equal(usageAvailable, true);
   assert.deepEqual(sortApps(apps, 'cpu').map(a => a.name), ['Offline', 'Worker', 'Database', 'Idle']);
   assert.deepEqual(sortApps(apps, 'memory').map(a => a.name), ['Offline', 'Database', 'Worker', 'Idle']);

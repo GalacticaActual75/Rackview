@@ -9,3 +9,4 @@
 !web/*.js
 !web/*.html
 !web/*.css
+!web/favicon.svg

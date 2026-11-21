@@ -13,6 +13,7 @@ import { nasConnection, readApps, readNas } from './truenas.mjs';
 const SENSOR_INTERVAL = 10_000;
 const assets = new Map([
   ['/', ['index.html', 'text/html']],
+  ['/favicon.svg', ['favicon.svg', 'image/svg+xml']],
   ['/setup.js', ['setup.js', 'text/javascript']],
   ['/apps.js', ['apps.js', 'text/javascript']],
   ['/app.js', ['app.js', 'text/javascript']],

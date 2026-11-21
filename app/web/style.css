@@ -125,6 +125,11 @@ th { background: var(--field); color: var(--muted); font-weight: 580; font-size:
 td { height: 42px; }
 .reading { text-align: right; white-space: nowrap; }
 td.reading { font-family: var(--mono); font-size: 12px; }
+.telemetry table { table-layout: fixed; }
+.telemetry th.reading { width: clamp(110px, 26%, 170px); }
+.telemetry th:last-child { width: clamp(85px, 22%, 150px); }
+.telemetry td { overflow-wrap: anywhere; }
+.telemetry td.reading, .telemetry .sensor-status { white-space: normal; }
 .sensor-status { display: inline-block; border-radius: 5px; padding: 3px 6px; color: var(--muted); background: #262e39; font-size: 11px; font-weight: 600; white-space: nowrap; }
 .sensor-status.good { color: var(--green); background: #203630; }
 .sensor-status.alert { color: var(--yellow); background: #433627; }
