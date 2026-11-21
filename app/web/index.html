@@ -17,7 +17,7 @@
       </a>
       <div class="target">
         <span class="dot" id="connection-dot"></span>
-        <div><strong>Dell iDRAC</strong><span id="target-address">Setup required</span></div>
+        <div><strong>Dell iDRAC</strong><span id="target-address">Loading…</span></div>
       </div>
       <nav aria-label="Dashboard">
         <a href="#overview" data-page="overview"><span class="nav-icon" aria-hidden="true">◫</span> Overview</a>
@@ -46,14 +46,15 @@
             <article class="metric" id="nas-memory-card" hidden><h2>Available memory</h2><div class="metric-value"><strong id="nas-memory">—</strong><span id="nas-memory-unit"></span></div><p id="nas-memory-total"></p></article>
           </div>
           <div class="overview-grid">
-            <div class="overview-column">
+            <section class="overview-column" aria-labelledby="idrac-heading">
+              <div class="source-heading"><div><h2 id="idrac-heading">Dell iDRAC</h2><p>IPMI over LAN</p></div><a class="text-link" href="#sensors">All sensors →</a></div>
               <section class="card telemetry">
-                <div class="card-header"><h2>Hardware cooling</h2><a class="text-link" href="#sensors">All sensors →</a></div>
+                <div class="card-header"><h3>Hardware cooling</h3></div>
                 <div class="table-scroll"><table aria-label="Fan speeds"><thead><tr><th scope="col">Fan</th><th scope="col" class="reading">Speed</th><th scope="col">Status</th></tr></thead><tbody id="fans-body"></tbody></table></div>
                 <div class="table-scroll"><table aria-label="Temperature sensors"><thead><tr><th scope="col">Sensor</th><th scope="col" class="reading">Temperature</th><th scope="col">Status</th></tr></thead><tbody id="temps-body"></tbody></table></div>
               </section>
               <section class="card controls">
-                <div class="card-header"><h2>Fan control</h2></div>
+                <div class="card-header"><h3>Fan control</h3></div>
                 <div class="command-record"><span>Last fan command</span><strong id="last-mode">Unknown</strong><small id="mode-summary">No command sent by Rackview</small></div>
               <form id="fan-form">
                 <div class="field-title"><label for="speed-range">Manual fan duty</label><button type="button" class="help-trigger" popovertarget="fan-duty-help" aria-label="How manual fan control works" title="How manual fan control works">ⓘ</button></div>
@@ -68,9 +69,9 @@
                 <p id="command-result" class="result" role="status" hidden></p>
               </form>
               </section>
-            </div>
+            </section>
             <section class="overview-column" aria-labelledby="nas-heading">
-              <div class="nas-heading"><div><h2 id="nas-heading">TrueNAS system</h2><p id="nas-status">Connect TrueNAS to view system stats, storage pools, and alerts.</p></div><a href="#connection" class="text-link">Connection settings</a></div>
+              <div class="source-heading"><div><h2 id="nas-heading">TrueNAS system</h2><p id="nas-status">Loading TrueNAS connection…</p></div><a href="#connection" class="text-link">Connection settings</a></div>
               <div class="overview-column" id="nas-data" hidden>
                 <section class="card">
                   <div class="card-header"><h3>Storage pools</h3></div>

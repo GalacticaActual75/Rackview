@@ -241,6 +241,10 @@ function refresh() {
       renderTelemetry();
       updateControls();
     } catch (error) {
+      if (!state) {
+        $('target-address').textContent = 'Connection unavailable';
+        $('nas-status').textContent = 'Connection unavailable';
+      }
       $('status-dot').dataset.state = $('connection-dot').dataset.state = 'offline';
       $('status-text').textContent = 'Dashboard unreachable';
       display('app-error', `Could not refresh Rackview. ${error.message}`, 'error');
