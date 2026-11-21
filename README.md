@@ -1,8 +1,20 @@
 # Rackview
 
-Rackview is a Docker dashboard for a Dell iDRAC. It reads fan RPM, temperatures, voltage, power, and other sensors available over IPMI. Its control panel can set a shared manual fan duty percentage or return control to iDRAC. The Virtual Console tab embeds the server's keyboard, video, and mouse through iDRAC VNC.
+Rackview brings Dell iDRAC cooling, hardware sensors, a VNC console, and read-only TrueNAS monitoring into one dashboard. Overview shows server load, pool capacity and alerts. The Apps tab shows installed TrueNAS applications with crashed apps first and CPU or memory sorting. The layout adapts to phones and desktops. You can configure each integration independently.
 
-## Deploy in Arcane
+## Install on TrueNAS or another Docker manager
+
+**[Copy the standalone Compose file](compose.truenas.yaml)**. It pulls the Rackview image and creates a named volume for settings. It works without a repository checkout, build context, or separate environment file.
+
+1. On TrueNAS 25.10, select an Apps pool if this is your first app. Go to **Apps → Discover Apps → ⋮ → Install via YAML** and enter `rackview` as the application name. In another Docker manager, open its Compose stack editor. [TrueNAS custom app installation](https://apps.truenas.com/managing-apps/installing-custom-apps/)
+2. Paste the **entire** Compose file. Set `DASHBOARD_PASSWORD` to a unique password before deploying. You can also change `DASHBOARD_USER`. If your password contains a literal dollar sign, enter it as `$$` in Compose. If port `8080` is occupied, change the first port in `"8080:8080"` to a free host port.
+3. Select **Save** or **Deploy**. Open `http://<server-address>:<host-port>` on your management network, sign in, and choose your integrations in **Set up Rackview**. Use an HTTPS reverse proxy with WebSocket forwarding when accessing Rackview across an untrusted network.
+
+**Image access.** The image is `ghcr.io/galacticaactual75/rackview:latest`. Public GHCR images support anonymous pulls. During private testing, configure the manager's `ghcr.io` registry credentials using an account with package access and a token with `read:packages`. Keep registry credentials in the manager's credential settings. [GitHub Container registry authentication](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry)
+
+**Storage and updates.** Rackview writes its iDRAC login, TrueNAS API key, and optionally its VNC password under `/var/lib/rackview`. Protect the volume and its backups as credentials. To use a TrueNAS dataset, replace the `rackview-data` source in the service volume mapping with its absolute host path and give UID/GID `1000:1000` access. To update, pull the latest image and recreate the service using the same project and volume. To pin a build, replace `:latest` with `:sha-<full-git-commit>`. If migrating an existing installation, point the new service at its existing data mount.
+
+## Build from source with Arcane Git Sync
 
 ### 1. Connect the repository
 

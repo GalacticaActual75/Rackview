@@ -2,3 +2,11 @@
 .env.*
 !.env.example
 data/
+connection.json
+truenas.json
+console-profiles.json
+dashboard-login.json
+*.pem
+*.key
+*.p12
+*.pfx

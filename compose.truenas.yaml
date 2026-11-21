@@ -1,0 +1,25 @@
+# Paste this whole file into TrueNAS "Install via YAML" or a Compose stack editor.
+services:
+  rackview:
+    image: ghcr.io/galacticaactual75/rackview:latest
+    ports:
+      - "8080:8080" # Change the first port if it is already in use.
+    environment:
+      DASHBOARD_USER: 'admin'
+      DASHBOARD_PASSWORD: 'admin' # Set your own password before deploying.
+    volumes:
+      - rackview-data:/var/lib/rackview
+    restart: unless-stopped
+    init: true
+    read_only: true
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: [CMD, node, -e, "fetch('http://localhost:8080/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+volumes:
+  rackview-data:
