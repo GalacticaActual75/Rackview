@@ -10,7 +10,7 @@ import { createDashboard } from '../app/server.mjs';
 test('readback uses only valid percentages from the fan PWM column', () => {
   const output = [
     'Sensor Type : FAN', '<Sensor Name> | <Status> | <Reading> | <lc> | <uc> | <PWM %>',
-    'System Board Fan1 RPM  Ok  14160 RPM  600 RPM  NA  80%',
+    'System Board Fan1 RPM  Ok  14160RPM  360RPM  NA  80%',
     'System Board Fan2 RPM | Ok | 9600 RPM | 600 RPM | NA | 55%',
     'System Board Fan3 RPM  Ok  0 RPM  600 RPM  NA  0%',
     'System Board Fan4 RPM  Ok  5000 RPM  600 RPM  NA  144%',

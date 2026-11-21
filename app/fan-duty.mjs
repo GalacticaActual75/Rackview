@@ -40,7 +40,7 @@ export function parseFanDuty(output) {
       continue;
     }
     if (!hasPwm) continue;
-    const row = line.replaceAll('|', ' ').trim().match(/^(.+?)\s+(OK)\s+\d+\s+RPM\s+.+?\s+(\d+(?:\.\d+)?)\s*%\s*$/i);
+    const row = line.replaceAll('|', ' ').trim().match(/^(.+?)\s+(OK)\s+\d+\s*RPM\s+.+?\s+(\d+(?:\.\d+)?)\s*%\s*$/i);
     if (row && Number(row[3]) <= 100) fans.push({ name: row[1].trim(), percent: Number(row[3]) });
   }
   return fans;
@@ -54,8 +54,8 @@ export async function readFanDuty({ host, user, password, sshHostKey }, dataDir)
       '-o', 'StrictHostKeyChecking=yes', '-o', 'GlobalKnownHostsFile=/dev/null',
       '-o', 'UserKnownHostsFile=' + knownHosts, '-o', 'UpdateHostKeys=no',
       '-o', 'PreferredAuthentications=password,keyboard-interactive', '-o', 'NumberOfPasswordPrompts=1',
-      '-o', 'ConnectTimeout=5', '-T', '-l', user, host, 'racadm getsensorinfo'],
-    { env: { PATH: process.env.PATH, LC_ALL: 'C', SSHPASS: password }, timeout: 15000, maxBuffer: 512 * 1024 });
+      '-o', 'ConnectTimeout=5', '-nT', '-l', user, host, 'racadm getsensorinfo'],
+    { env: { PATH: process.env.PATH, LC_ALL: 'C', SSHPASS: password }, timeout: 30000, maxBuffer: 512 * 1024 });
     return parseFanDuty(stdout);
   } catch {
     throw new Error('Could not read fan duty over SSH. Check iDRAC SSH access on port 22, the saved host key and the account permissions.');

@@ -244,7 +244,16 @@ async function checkDuty() {
   renderDuty();
   try {
     const result = await request('/api/fans/readback', { revision });
-    if (state.revision === revision && state.lastCommand?.at === commandAt) dutyResult = result;
+    if (state.revision === revision && state.lastCommand?.at === commandAt) {
+      dutyResult = result;
+      if (!editingDuty && state.lastCommand?.mode !== 'manual') {
+        const target = result.fans[0]?.percent;
+        const rpmCount = state.sensors.filter(sensor => sensor.unit.toLowerCase() === 'rpm' && sensor.value !== null).length;
+        const shared = Number.isInteger(target) && result.fans.length >= rpmCount && result.fans.every(fan => fan.percent === target);
+        $('speed-number').value = shared ? target : '';
+        $('speed-range').value = shared ? target : 50;
+      }
+    }
   } catch (error) {
     if (state.revision === revision) dutyResult = { error: error.message };
   } finally {

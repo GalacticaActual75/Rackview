@@ -172,6 +172,7 @@ export async function createDashboard({
   let sensorError = null;
   let lastAttempt = 0;
   let reading = null;
+  let dutyReading = null;
   let busy = false;
 
   async function exclusive(action) {
@@ -383,13 +384,13 @@ export async function createDashboard({
           return json(response, 200, { lastCommand: await exclusive(() => setFanControl(input)) });
         }
         if (url === '/api/fans/readback') {
-          const result = await exclusive(async () => {
-            if (!connection || input?.revision !== revision) throw new HttpError(409, 'Refresh the iDRAC connection first.');
-            if (!connection.sshHostKey) throw new HttpError(409, 'Add a verified iDRAC SSH host key in Connection.');
+          if (!connection || input?.revision !== revision) throw new HttpError(409, 'Refresh the iDRAC connection first.');
+          if (!connection.sshHostKey) throw new HttpError(409, 'Add a verified iDRAC SSH host key in Connection.');
+          dutyReading ??= exclusive(async () => {
             try { return { fans: await readDuty(connection, dataDir), at: new Date().toISOString() }; }
             catch (error) { throw new HttpError(502, error.message); }
-          });
-          return json(response, 200, result);
+          }).finally(() => { dutyReading = null; });
+          return json(response, 200, await dutyReading);
         }
         if (url === '/api/connection/ssh-host-key') {
           const key = await exclusive(async () => {
