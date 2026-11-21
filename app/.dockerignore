@@ -2,6 +2,7 @@
 !.arcane*.Dockerfile
 !server.mjs
 !ipmi.mjs
+!fan-duty.mjs
 !console.mjs
 !truenas.mjs
 !web/

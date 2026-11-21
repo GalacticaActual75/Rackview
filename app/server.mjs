@@ -7,6 +7,7 @@ import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { AUTOMATIC, MANUAL, ipmi, parseController, parseSensors, speedCommand } from './ipmi.mjs';
 import { installConsole } from './console.mjs';
+import { findFanHostKey, readFanDuty } from './fan-duty.mjs';
 import { nasConnection, readApps, readNas } from './truenas.mjs';
 
 const SENSOR_INTERVAL = 10_000;
@@ -39,7 +40,11 @@ function validateConnection(input, saved) {
   if (typeof password !== 'string' || !password || password.includes('\0')) {
     throw new HttpError(400, 'Enter the iDRAC password.');
   }
-  return { host, user, password };
+  const sshHostKey = (input.sshHostKey ?? (host === saved?.host ? saved.sshHostKey : '') ?? '').trim();
+  if (sshHostKey && !/^(ssh-ed25519|ssh-rsa|ecdsa-sha2-nistp(?:256|384|521)) [A-Za-z0-9+/]{16,2048}={0,2}$/.test(sshHostKey)) {
+    throw new HttpError(400, 'Enter the SSH host key type and its base64 public key.');
+  }
+  return { host, user, password, sshHostKey };
 }
 
 function json(response, status, value) {
@@ -98,7 +103,7 @@ export async function createDashboard({
   dataDir,
   user = process.env.DASHBOARD_USER || 'admin',
   password = process.env.DASHBOARD_PASSWORD || 'admin',
-  run = ipmi, ws, novncDir = '/usr/share/novnc',
+  run = ipmi, readDuty = readFanDuty, ws, novncDir = '/usr/share/novnc',
 }) {
   if (!user || user.includes(':') || !password) {
     throw new Error('Set DASHBOARD_PASSWORD and a valid DASHBOARD_USER before starting Rackview.');
@@ -106,8 +111,16 @@ export async function createDashboard({
   await mkdir(dataDir, { recursive: true, mode: 0o700 });
   const configPath = join(dataDir, 'connection.json');
   let connection = null;
+  let lastCommand = null;
   try {
-    connection = validateConnection(JSON.parse(await readFile(configPath, 'utf8')));
+    const saved = JSON.parse(await readFile(configPath, 'utf8'));
+    connection = validateConnection(saved);
+    const cmd = saved.lastCommand;
+    if (cmd && Number.isFinite(Date.parse(cmd.at)) &&
+      ((cmd.mode === 'auto' && cmd.percent === null) ||
+       (cmd.mode === 'manual' && Number.isInteger(cmd.percent) && cmd.percent >= 0 && cmd.percent <= 100))) {
+      lastCommand = { mode: cmd.mode, percent: cmd.percent, at: cmd.at };
+    }
   } catch (error) {
     if (error.code !== 'ENOENT') throw new Error('The saved iDRAC connection could not be loaded.');
   }
@@ -149,7 +162,6 @@ export async function createDashboard({
   }
   const csrf = randomBytes(32).toString('base64url');
   let revision = randomBytes(16).toString('hex');
-  let lastCommand = null;
   let sensors = [];
   let updatedAt = null;
   let sensorError = null;
@@ -193,14 +205,26 @@ export async function createDashboard({
   }
 
   async function save(next) {
-    await saveJson(configPath, next);
-    if (connection?.host !== next.host) lastCommand = null;
+    const command = connection?.host === next.host ? lastCommand : null;
+    await saveJson(configPath, { ...next, lastCommand: command });
+    lastCommand = command;
     connection = next;
     revision = randomBytes(16).toString('hex');
     sensors = [];
     updatedAt = null;
     sensorError = null;
     lastAttempt = 0;
+  }
+
+  async function recordCommand(mode, percent = null) {
+    const command = { mode, percent, at: new Date().toISOString() };
+    try {
+      await saveJson(configPath, { ...connection, lastCommand: command });
+    } catch {
+      throw new HttpError(500, 'iDRAC accepted the command, but Rackview could not save its history. Check the data volume.');
+    }
+    lastCommand = command;
+    return command;
   }
 
   async function setFanControl(input) {
@@ -211,24 +235,25 @@ export async function createDashboard({
     if (!connection) throw new HttpError(409, 'Save an iDRAC connection first.');
     if (input.revision !== revision) throw new HttpError(409, 'The connection changed. Refresh the dashboard first.');
 
+    // An interruption after the first hardware write leaves the outcome unknown.
+    await saveJson(configPath, { ...connection, lastCommand: null });
+    lastCommand = null;
     try {
       await run(connection, mode === 'manual' ? MANUAL : AUTOMATIC);
       if (mode === 'manual') await run(connection, speedCommand(percent));
-      lastCommand = { mode, percent: mode === 'manual' ? percent : null, at: new Date().toISOString() };
     } catch (error) {
-      lastCommand = null;
       if (mode === 'auto') throw new HttpError(502, `Could not restore automatic mode. ${error.message}`);
       try {
         await run(connection, AUTOMATIC);
-        lastCommand = { mode: 'auto', percent: null, at: new Date().toISOString() };
       } catch (restoreError) {
         throw new HttpError(502, `Manual control failed and automatic mode could not be restored. ${error.message} ${restoreError.message}`);
       }
+      await recordCommand('auto');
       throw new HttpError(502, `Manual control failed. Automatic mode was restored. ${error.message}`);
     } finally {
       lastAttempt = 0;
     }
-    return lastCommand;
+    return recordCommand(mode, mode === 'manual' ? percent : null);
   }
 
   const server = createServer({ requestTimeout: 30_000 }, async (request, response) => {
@@ -276,7 +301,7 @@ export async function createDashboard({
       if (method === 'GET' && url === '/api/status') {
         await refresh();
         return json(response, 200, {
-          connection: connection ? { host: connection.host, user: connection.user } : null,
+          connection: connection ? { host: connection.host, user: connection.user, sshHostKey: connection.sshHostKey } : null,
           consoleProfiles: visibleProfiles(), setupRequired: !setupComplete && !connection && !nas,
           nas: nas ? { url: nas.url, user: nas.user, fingerprint: nas.fingerprint } : null, nasRevision,
           csrf, revision, sensors, updatedAt, sensorError, lastCommand, consoleAvailable: !!issueConsoleTicket, pollMs: SENSOR_INTERVAL,
@@ -351,6 +376,23 @@ export async function createDashboard({
         }
         if (url === '/api/fans') {
           return json(response, 200, { lastCommand: await exclusive(() => setFanControl(input)) });
+        }
+        if (url === '/api/fans/readback') {
+          const result = await exclusive(async () => {
+            if (!connection || input?.revision !== revision) throw new HttpError(409, 'Refresh the iDRAC connection first.');
+            if (!connection.sshHostKey) throw new HttpError(409, 'Add a verified iDRAC SSH host key in Connection.');
+            try { return { fans: await readDuty(connection, dataDir), at: new Date().toISOString() }; }
+            catch (error) { throw new HttpError(502, error.message); }
+          });
+          return json(response, 200, result);
+        }
+        if (url === '/api/connection/ssh-host-key') {
+          const key = await exclusive(async () => {
+            if (!connection || input?.revision !== revision) throw new HttpError(409, 'Save the iDRAC connection first.');
+            try { return await findFanHostKey(connection.host); }
+            catch (error) { throw new HttpError(502, error.message); }
+          });
+          return json(response, 200, key);
         }
         if (['/api/console/ticket', '/api/console/profiles/save', '/api/console/profiles/forget'].includes(url)) {
           if (!connection || input?.revision !== revision) throw new HttpError(409, 'Save or refresh the iDRAC connection first.');

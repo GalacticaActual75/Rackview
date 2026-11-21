@@ -19,14 +19,14 @@ services:
       dockerfile_inline: |
         FROM node:24-trixie-slim
         RUN apt-get update \
-            && apt-get install -y --no-install-recommends ipmitool node-ws novnc \
+            && apt-get install -y --no-install-recommends ipmitool node-ws novnc openssh-client sshpass \
             && rm -rf /var/lib/apt/lists/* \
             && install -d -m 0700 -o node -g node /var/lib/rackview
         # iDRAC8 can stop sending video when TightPNG is advertised (noVNC #712).
         RUN sed -i '/^[[:blank:]]*encs\.push(encodings\.encodingTightPNG);[[:blank:]]*$/d' /usr/share/novnc/core/rfb.js \
             && ! grep -Fq 'encs.push(encodings.encodingTightPNG)' /usr/share/novnc/core/rfb.js
         WORKDIR /app
-        COPY server.mjs ipmi.mjs console.mjs truenas.mjs ./
+        COPY server.mjs ipmi.mjs fan-duty.mjs console.mjs truenas.mjs ./
         COPY web/ ./web/
         ENV DATA_DIR=/var/lib/rackview
         USER node

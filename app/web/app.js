@@ -9,6 +9,10 @@ let formRevision;
 let polling;
 let timer;
 let pending = false;
+let dutyPending = false;
+let dutyResult;
+let editingDuty = false;
+let discoveredKey;
 let connectionPending = false;
 let session = sessionStorage.getItem('rackview.session');
 const number = new Intl.NumberFormat(undefined, { maximumFractionDigits: 1 });
@@ -194,17 +198,59 @@ function renderTelemetry() {
   $('temp-summary').textContent = hottest?.name ?? 'No temperature readings';
   const command = state?.lastCommand;
   $('last-mode').textContent = command?.mode === 'manual' ? `Manual · ${command.percent}%` : command?.mode === 'auto' ? 'Automatic' : 'Unknown';
-  $('mode-summary').textContent = command ? `Sent at ${new Date(command.at).toLocaleTimeString()}` : 'No confirmed Rackview command';
+  $('mode-summary').textContent = command ? `Accepted ${new Date(command.at).toLocaleString()}` : 'No saved Rackview command';
   renderRows($('fans-body'), fans, 'No fan readings yet.');
   renderRows($('temps-body'), temps, 'No temperature readings yet.');
   renderSensors();
 }
 
 function updateControls() {
-  const blocked = pending || !state?.connection;
+  const blocked = pending || dutyPending || !state?.connection;
   for (const id of ['set-manual', 'set-auto', 'speed-range', 'speed-number']) $(id).disabled = blocked;
+  $('set-manual').disabled = blocked || !$('speed-number').validity.valid;
+  $('speed-range').dataset.empty = String(!$('speed-number').validity.valid);
+  $('check-duty').disabled = blocked;
+  $('check-duty').hidden = !state?.connection?.sshHostKey;
+  $('fan-duty-setup').hidden = !state?.connection || !!state.connection.sshHostKey;
   for (const id of ['test-connection', 'save-connection', 'host', 'user', 'password']) $(id).disabled = connectionPending || !state;
   consoleView.update();
+}
+
+function renderDuty() {
+  const readings = dutyResult?.fans ?? [];
+  const values = readings.map(fan => fan.percent);
+  const lo = Math.min(...values), hi = Math.max(...values);
+  $('fan-duty-reading').textContent = dutyPending ? 'Checking…' : values.length ? (lo === hi ? lo + '%' : lo + '–' + hi + '%') : 'Unknown';
+  let detail = state?.connection?.sshHostKey ? 'Check the PWM reported by iDRAC.' : 'SSH readback is optional. IPMI supplies fan RPM.';
+  if (dutyResult?.error) detail = dutyResult.error;
+  else if (dutyResult) {
+    const when = new Date(dutyResult.at).toLocaleString();
+    detail = readings.length ? `Checked ${when} · ${readings.map(f => f.name + ' ' + f.percent + '%').join(', ')}`
+      : `Checked ${when} · iDRAC returned no usable fan PWM readings.`;
+    if (readings.length && state.lastCommand?.mode === 'manual') {
+      detail += values.every(value => value === state.lastCommand.percent) ? ' · Reported duty matches the saved target.' : ' · Reported duty differs from the saved target.';
+    }
+  }
+  $('fan-duty-detail').textContent = dutyPending ? '' : detail;
+}
+
+async function checkDuty() {
+  if (dutyPending || pending || !state?.connection?.sshHostKey) return;
+  const revision = state.revision;
+  const commandAt = state.lastCommand?.at;
+  dutyPending = true;
+  updateControls();
+  renderDuty();
+  try {
+    const result = await request('/api/fans/readback', { revision });
+    if (state.revision === revision && state.lastCommand?.at === commandAt) dutyResult = result;
+  } catch (error) {
+    if (state.revision === revision) dutyResult = { error: error.message };
+  } finally {
+    dutyPending = false;
+    renderDuty();
+    updateControls();
+  }
 }
 
 function renderStatus() {
@@ -240,9 +286,39 @@ function resetConnectionForm() {
   $('host').value = state.connection?.host ?? '';
   $('user').value = state.connection?.user ?? '';
   $('password').value = '';
+  $('idrac-ssh-key').value = state.connection?.sshHostKey ?? '';
+  clearDiscoveredKey();
   $('password-hint').textContent = state.connection ? 'Leave blank to reuse the password for this IP and username.' : 'Enter the password for this iDRAC account.';
   formRevision = state.revision;
 }
+
+function clearDiscoveredKey() {
+  discoveredKey = undefined;
+  $('trust-ssh-key').hidden = true;
+  display('ssh-key-result', '');
+}
+
+$('find-ssh-key').addEventListener('click', async () => {
+  clearDiscoveredKey();
+  const revision = state?.revision;
+  if (!state?.connection || $('host').value !== state.connection.host) return display('ssh-key-result', 'Save the iDRAC address first.');
+  $('find-ssh-key').disabled = true;
+  display('ssh-key-result', 'Reading SSH host key…');
+  try {
+    const key = await request('/api/connection/ssh-host-key', { revision });
+    if (state.revision !== revision || $('host').value !== state.connection.host) return;
+    discoveredKey = { ...key, revision };
+    display('ssh-key-result', key.fingerprint + ' · Compare this fingerprint with a trusted SSH client or your administrator before using this key.');
+    $('trust-ssh-key').hidden = false;
+  } catch (error) { display('ssh-key-result', error.message, 'error'); }
+  finally { $('find-ssh-key').disabled = false; }
+});
+$('trust-ssh-key').addEventListener('click', () => {
+  if (discoveredKey?.revision !== state?.revision || $('host').value !== state?.connection?.host) return;
+  $('idrac-ssh-key').value = discoveredKey.publicKey;
+  clearDiscoveredKey();
+  display('ssh-key-result', 'Select Save connection to pin this key.');
+});
 
 function refresh() {
   if (polling) return polling;
@@ -251,10 +327,19 @@ function refresh() {
   polling = (async () => {
     try {
       const firstLoad = !state;
+      const before = state;
       state = await request('/api/status');
+      if (before?.revision !== state.revision || before?.lastCommand?.at !== state.lastCommand?.at) {
+        dutyResult = undefined;
+        if (before?.revision !== state.revision) editingDuty = false;
+        if (!editingDuty) {
+          const percent = state.lastCommand?.mode === 'manual' ? state.lastCommand.percent : '';
+          $('speed-number').value = percent;
+          $('speed-range').value = percent === '' ? 50 : percent;
+        }
+      }
       if (firstLoad) {
         resetConnectionForm();
-        if (state.lastCommand?.mode === 'manual') $('speed-range').value = $('speed-number').value = state.lastCommand.percent;
         if (state.setupRequired && (!location.hash || location.hash === '#overview')) history.replaceState(null, '', '#setup');
         navigate();
       }
@@ -262,6 +347,7 @@ function refresh() {
       nasView.update(state);
       appsView.update(state);
       renderTelemetry();
+      renderDuty();
       updateControls();
     } catch (error) {
       if (!state) {
@@ -287,7 +373,14 @@ async function changeFanMode(mode) {
   display('command-result', 'Sending command…');
   try {
     const data = await request('/api/fans', { mode, percent: $('speed-number').valueAsNumber, revision: state.revision });
+    editingDuty = false;
+    dutyResult = undefined;
     state.lastCommand = data.lastCommand;
+    if (mode === 'auto') {
+      $('speed-number').value = '';
+      $('speed-range').value = 50;
+    }
+    renderDuty();
     renderTelemetry();
     display('command-result', mode === 'manual' ? `Manual speed set to ${data.lastCommand.percent}%.` : 'iDRAC automatic control restored.', 'success');
   } catch (error) {
@@ -303,7 +396,7 @@ async function changeFanMode(mode) {
 async function configureConnection(test) {
   if (connectionPending || !$('connection-form').reportValidity()) return;
   connectionPending = true;
-  const input = { host: $('host').value, user: $('user').value, password: $('password').value, revision: formRevision };
+  const input = { host: $('host').value, user: $('user').value, password: $('password').value, sshHostKey: $('idrac-ssh-key').value, revision: formRevision };
   $('test-details').hidden = true;
   updateControls();
   display('connection-result', test ? 'Testing IPMI credentials…' : 'Saving connection…');
@@ -344,8 +437,11 @@ window.addEventListener('hashchange', navigate);
 $('sensor-search').addEventListener('input', renderSensors);
 $('sensor-kind').addEventListener('change', renderSensors);
 $('show-unavailable').addEventListener('change', renderSensors);
-$('speed-range').addEventListener('input', () => { $('speed-number').value = $('speed-range').value; });
-$('speed-number').addEventListener('input', () => { if ($('speed-number').validity.valid) $('speed-range').value = $('speed-number').value; });
+$('host').addEventListener('input', () => { clearDiscoveredKey(); if ($('host').value !== state?.connection?.host) $('idrac-ssh-key').value = ''; });
+$('fan-duty-setup').addEventListener('click', () => { $('fan-ssh-settings').open = true; });
+$('check-duty').addEventListener('click', checkDuty);
+$('speed-range').addEventListener('input', () => { editingDuty = true; $('speed-number').value = $('speed-range').value; updateControls(); });
+$('speed-number').addEventListener('input', () => { editingDuty = true; if ($('speed-number').validity.valid) $('speed-range').value = $('speed-number').value; updateControls(); });
 $('fan-form').addEventListener('submit', (event) => { event.preventDefault(); changeFanMode('manual'); });
 $('set-auto').addEventListener('click', () => changeFanMode('auto'));
 $('connection-form').addEventListener('submit', (event) => { event.preventDefault(); configureConnection(false); });

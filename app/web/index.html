@@ -90,10 +90,11 @@
               <section class="card controls">
                 <div class="card-header"><h3>Fan control</h3></div>
                 <div class="command-record"><span>Last fan command</span><strong id="last-mode">Unknown</strong><small id="mode-summary">No command sent by Rackview</small></div>
+                <div class="command-record"><span>iDRAC fan duty</span><strong id="fan-duty-reading">Unknown</strong><small id="fan-duty-detail"></small><button id="check-duty" type="button" class="button quiet" hidden>Check fan duty</button><a id="fan-duty-setup" class="text-link" href="#connection" hidden>Set up readback</a></div>
               <form id="fan-form">
                 <div class="field-title"><label for="speed-range">Manual fan duty</label><button type="button" class="help-trigger" popovertarget="fan-duty-help" aria-label="How manual fan control works" title="How manual fan control works">ⓘ</button></div>
-                <div popover class="field-tip" id="fan-duty-help"><strong>Percentage and RPM</strong><p>The percentage sets a shared fan duty. The fan table shows each fan’s measured RPM. <strong>Restore automatic</strong> returns cooling to iDRAC. Disable any TrueNAS cron job that keeps forcing manual mode when Rackview is managing the fans.</p></div>
-                <div class="range-row"><input id="speed-range" type="range" min="0" max="100" value="35"><div class="percent"><input id="speed-number" type="number" min="0" max="100" step="1" value="35" aria-label="Manual fan duty percentage" required><span>%</span></div></div>
+                <div popover class="field-tip" id="fan-duty-help"><strong>Percentage and RPM</strong><p>Choose a target and apply it to all fans. Rackview remembers the last accepted command across restarts. Check fan duty reads the controller’s per-fan PWM percentages over SSH. The fan table shows measured RPM. <strong>Restore automatic</strong> returns cooling to iDRAC. Disable any cron job that keeps forcing manual mode.</p></div>
+                <div class="range-row"><input id="speed-range" type="range" min="0" max="100" data-empty="true"><div class="percent"><input id="speed-number" type="number" min="0" max="100" step="1" placeholder="—" aria-label="Manual fan duty percentage" required><span>%</span></div></div>
                 <div class="range-scale" aria-hidden="true"><span>0%</span><span>50%</span><span>100%</span></div>
                 <div class="control-buttons">
                   <button type="submit" id="set-manual" class="button primary" disabled>Apply manual speed</button>
@@ -174,6 +175,14 @@
                 </div>
                 <label>iDRAC username<input id="user" name="user" spellcheck="false" maxlength="16" required></label>
                 <label class="wide">iDRAC password<input id="password" name="password" type="password" autocomplete="new-password" aria-describedby="password-hint"><span id="password-hint" class="hint">Enter the password for this iDRAC account.</span></label>
+                <details class="wide" id="fan-ssh-settings"><summary>Optional fan duty readback over SSH</summary>
+                  <p class="hint">In iDRAC8, open <strong>Overview → iDRAC Settings → Network → Services</strong> and enable SSH on port 22. Save the iDRAC address in Rackview, then find its host key.</p>
+                  <button id="find-ssh-key" type="button" class="button quiet">Find SSH host key</button>
+                  <p class="hint" id="ssh-key-result" role="status" hidden></p>
+                  <button id="trust-ssh-key" type="button" class="button quiet" hidden>Use this host key</button>
+                  <label>Trusted SSH host public key<input id="idrac-ssh-key" spellcheck="false" placeholder="Key type and base64 public key"></label>
+                  <p class="hint">Save the connection to pin the key. Then select <strong>Check fan duty</strong> on Overview.</p>
+                </details>
               </div>
               <div class="settings-buttons"><button id="save-connection" class="button primary" type="submit" disabled>Save connection</button><button id="test-connection" class="button secondary" type="button" disabled>Test connection</button></div>
               <p id="connection-result" class="result" role="status" hidden></p>
